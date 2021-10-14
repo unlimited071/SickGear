@@ -27,7 +27,7 @@ from exceptions_helper import ex
 import sickbeard
 from . import db, logger
 from .classes import NZBDataSearchResult, NZBSearchResult, TorrentSearchResult
-from .helpers import get_system_temp_dir, make_dirs
+from .helpers import get_system_temp_dir, make_path
 
 # noinspection PyUnreachableCode
 if False:
@@ -184,7 +184,7 @@ def short_group_names(groups):
 def anidb_cache_dir():
     # type: (...) -> Optional[AnyStr]
     cache_dir = ek.ek(os.path.join, sickbeard.CACHE_DIR or get_system_temp_dir(), 'anidb')
-    if not make_dirs(cache_dir):
+    if not make_path(cache_dir):
         cache_dir = None
     return cache_dir
 

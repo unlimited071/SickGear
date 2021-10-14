@@ -34,7 +34,7 @@ import sickbeard
 from . import logger, sgdatetime
 from .sgdatetime import timestamp_near
 
-from sg_helpers import make_dirs, compress_file, remove_file_perm, scantree
+from sg_helpers import make_path, compress_file, remove_file_perm, scantree
 
 from _23 import filter_iter, filter_list, list_values, scandir
 from six import iterkeys, iteritems, itervalues
@@ -841,7 +841,7 @@ def backup_all_dbs(target, compress=True, prefer_7z=True):
     :param prefer_7z: prefer 7z compression if available
     :return: success, message
     """
-    if not make_dirs(target):
+    if not make_path(target):
         logger.log('Failed to create db backup dir', logger.ERROR)
         return False, 'Failed to create db backup dir'
     my_db = DBConnection('cache.db')

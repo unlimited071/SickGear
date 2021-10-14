@@ -399,7 +399,7 @@ def _custom_exceptions_fetcher():
     if fetch_data:
         if ek.ek(os.path.exists, tmppath):
             helpers.remove_file(tmppath, tree=True)
-        helpers.make_dirs(tmppath)
+        helpers.make_path(tmppath)
         helpers.download_file(r'https://github.com/SickGear/sickgear.altdata/raw/master/alt.rar', file_rar)
 
         rar_handle = None

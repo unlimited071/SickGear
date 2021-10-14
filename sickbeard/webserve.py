@@ -9495,7 +9495,7 @@ class CachedImages(MainHandler):
         image_file = ek.ek(os.path.abspath, image_file.replace('\\', '/'))
         if not ek.ek(os.path.isfile, image_file) and has_image_ext(file_name):
             basepath = ek.ek(os.path.dirname, image_file)
-            helpers.make_dirs(basepath)
+            helpers.make_path(basepath)
             poster_url = ''
             tmdb_image = False
             if None is not source and source in sickbeard.CACHE_IMAGE_URL_LIST:
@@ -9597,7 +9597,7 @@ class CachedImages(MainHandler):
         if not prefer_person and (char_obj.thumb_url or char_obj.image_url):
             image_cache_obj = image_cache.ImageCache()
             image_normal, image_thumb = image_cache_obj.character_both_path(char_obj, show_obj, person_obj=person_obj)
-            sg_helpers.make_dirs(image_cache_obj.characters_dir)
+            sg_helpers.make_path(image_cache_obj.characters_dir)
             if self.should_load_image(image_normal) and char_obj.image_url:
                 sg_helpers.download_file(char_obj.image_url, image_normal)
             if self.should_load_image(image_thumb) and char_obj.thumb_url:
@@ -9635,7 +9635,7 @@ class CachedImages(MainHandler):
         if person_obj.thumb_url or person_obj.image_url:
             image_cache_obj = image_cache.ImageCache()
             image_normal, image_thumb = image_cache_obj.person_both_paths(person_obj)
-            sg_helpers.make_dirs(image_cache_obj.characters_dir)
+            sg_helpers.make_path(image_cache_obj.characters_dir)
             if self.should_load_image(image_normal) and person_obj.image_url:
                 sg_helpers.download_file(person_obj.image_url, image_normal)
             if self.should_load_image(image_thumb) and person_obj.thumb_url:
