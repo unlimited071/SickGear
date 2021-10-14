@@ -528,7 +528,7 @@ class ImageCache(object):
             return False
 
         for cache_dir in [self.shows_dir, self._thumbnails_dir(*id_args)] + fanart_dir:
-            sg_helpers.make_dirs(cache_dir)
+            sg_helpers.make_path(cache_dir)
 
         logger.log(u'%sing from %s to %s' % (('Copy', 'Mov')[move_file], image_path, dest_path))
         # copy poster, banner as thumb, even if moved we need to duplicate the images

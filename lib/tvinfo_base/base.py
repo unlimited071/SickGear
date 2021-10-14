@@ -9,7 +9,7 @@ from exceptions_helper import ex
 from six import integer_types, iteritems, iterkeys, string_types, text_type
 from _23 import list_items, list_values
 from lib.tvinfo_base.exceptions import *
-from sg_helpers import calc_age, make_dirs
+from sg_helpers import calc_age, make_path
 
 # noinspection PyUnreachableCode
 if False:
@@ -906,7 +906,7 @@ class TVInfoBase(object):
                         log.error(ex(e))
                         pass
                     try:
-                        make_dirs(self._cachedir)
+                        make_path(self._cachedir)
                     except (BaseException, Exception):
                         pass
                     return self._get_cache_entry(key, retry=True)
