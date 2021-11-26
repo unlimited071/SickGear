@@ -1,4 +1,9 @@
-﻿### 0.25.20 (2021-11-21 16:25:00 UTC)
+﻿### 0.26.xx (202x-xx-xx xx:xx:00 UTC)
+
+* Add support for scene episode number to multiple episodes
+
+
+### 0.25.20 (2021-11-21 16:25:00 UTC)
 
 * Fix display show when IMDb returns no episodes or runtimes
 
