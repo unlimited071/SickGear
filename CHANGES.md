@@ -3,6 +3,11 @@
 * Add support for scene episode number to multiple episodes
 
 
+### 0.25.22 (2021-12-14 00:30:00 UTC)
+
+* Fix recognition of unreadable media quality to type UKNOWN
+
+
 ### 0.25.21 (2021-12-07 00:40:00 UTC)
 
 * Change allow Python 3.10.1
