@@ -3,6 +3,11 @@
 * Add support for scene episode number to multiple episodes
 
 
+### 0.25.23 (2021-12-18 19:45:00 UTC)
+
+* Fix handle bad data fetched from tvinfo source and passed to get_network_timezone
+
+
 ### 0.25.22 (2021-12-14 00:30:00 UTC)
 
 * Fix recognition of unreadable media quality to type UKNOWN
