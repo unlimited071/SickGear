@@ -3,6 +3,11 @@
 * Add support for scene episode number to multiple episodes
 
 
+### 0.25.25 (2022-01-18 14:55:00 UTC)
+
+* Change allow Python 3.10.2 and 3.9.10
+
+
 ### 0.25.24 (2021-12-22 22:05:00 UTC)
 
 * Fix person text spacing in regular layout
