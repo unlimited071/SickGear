@@ -19,6 +19,7 @@ if False:
 TVINFO_TVDB = 1
 TVINFO_TVRAGE = 2
 TVINFO_TVMAZE = 3
+TVINFO_TMDB = 4
 
 # old tvdb api - version 1
 # TVINFO_TVDB_V1 = 10001
@@ -26,7 +27,8 @@ TVINFO_TVMAZE = 3
 # mapped only source
 TVINFO_IMDB = 100
 TVINFO_TRAKT = 101
-TVINFO_TMDB = 102
+# old tmdb id
+TVINFO_TMDB_OLD = 102
 # end mapped only source
 TVINFO_TVDB_SLUG = 1001
 TVINFO_TRAKT_SLUG = 1101
@@ -177,6 +179,12 @@ class TVInfoImageType(object):
     other = 10
     # person
     person_poster = 50
+    # season
+    season_poster = 100
+    season_banner = 101
+    season_fanart = 103
+    # stills
+    still = 200
 
     reverse_str = {
         poster: 'poster',
@@ -186,7 +194,13 @@ class TVInfoImageType(object):
         typography: 'typography',
         other: 'other',
         # person
-        person_poster: 'person poster'
+        person_poster: 'person poster',
+        # season
+        season_poster: 'season poster',
+        season_banner: 'season banner',
+        season_fanart: 'season fanart',
+        # stills
+        still: 'still'
     }
 
 
@@ -292,7 +306,7 @@ class TVInfoShow(dict):
         self.siteratingcount = None  # type: integer_types
         self.lastupdated = None  # type: integer_types
         self.contentrating = None  # type: Optional[AnyStr]
-        self.rating = None  # type: integer_types
+        self.rating = None  # type: Union[integer_types, float]
         self.status = None  # type: Optional[AnyStr]
         self.overview = None  # type: Optional[AnyStr]
         self.poster = None  # type: Optional[AnyStr]
@@ -350,10 +364,12 @@ class TVInfoShow(dict):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if 'lock' != k:
+            if 'lock' == k:
+                setattr(result, k, threading.RLock())
+            else:
                 setattr(result, k, copy.deepcopy(v, memo))
         for k, v in self.items():
-            result[k] = copy.deepcopy(v)
+            result[k] = copy.deepcopy(v, memo)
             if isinstance(k, integer_types):
                 setattr(result[k], 'show', result)
         return result
@@ -361,6 +377,9 @@ class TVInfoShow(dict):
     def __bool__(self):
         # type: (...) -> bool
         return bool(self.id) or any(iterkeys(self.data))
+
+    def to_dict(self):
+        return self.__dict__.copy()
 
     def aired_on(self, date):
         ret = self.search(str(date), 'firstaired')
@@ -445,10 +464,9 @@ class TVInfoSeason(dict):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if 'show' != k:
-                setattr(result, k, copy.deepcopy(v, memo))
+            setattr(result, k, copy.deepcopy(v, memo))
         for k, v in self.items():
-            result[k] = copy.deepcopy(v)
+            result[k] = copy.deepcopy(v, memo)
             if isinstance(k, integer_types):
                 setattr(result[k], 'season', result)
         return result
@@ -468,7 +486,7 @@ class TVInfoSeason(dict):
 
 
 class TVInfoEpisode(dict):
-    def __init__(self, season=None, **kwargs):
+    def __init__(self, season=None, show=None, **kwargs):
         """The season attribute points to the parent season
         """
         super(TVInfoEpisode, self).__init__(**kwargs)
@@ -517,10 +535,10 @@ class TVInfoEpisode(dict):
         self.thumbadded = None  # type: Optional[AnyStr]
         self.rating = None  # type: Union[integer_types, float]
         self.siteratingcount = None  # type: integer_types
-        self.show = None  # type: Optional[TVInfoShow]
+        self.show = show  # type: Optional[TVInfoShow]
 
     def __str__(self):
-        show_name = self.show and self.show.seriesname and '<Show  %s> - ' % self.show.seriesname
+        show_name = (self.show and self.show.seriesname and '<Show  %s> - ' % self.show.seriesname) or ''
         seasno, epno = int(getattr(self, 'seasonnumber', 0)), int(getattr(self, 'episodenumber', 0))
         epname = getattr(self, 'episodename', '')
         if None is not epname:
@@ -544,10 +562,9 @@ class TVInfoEpisode(dict):
         result = cls.__new__(cls)
         memo[id(self)] = result
         for k, v in self.__dict__.items():
-            if 'season' != k:
-                setattr(result, k, copy.deepcopy(v, memo))
+            setattr(result, k, copy.deepcopy(v, memo))
         for k, v in self.items():
-            result[k] = copy.deepcopy(v)
+            result[k] = copy.deepcopy(v, memo)
         return result
 
     def __bool__(self):
@@ -790,6 +807,12 @@ crew_type_names = {c.lower(): v for v, c in iteritems(RoleTypes.reverse) if v >=
 class TVInfoBase(object):
     supported_id_searches = []
     supported_person_id_searches = []
+    _supported_languages = None
+    map_languages = {'cs': 'ces', 'da': 'dan', 'de': 'deu', 'en': 'eng', 'es': 'spa', 'fi': 'fin', 'fr': 'fra',
+                     'he': 'heb', 'hr': 'hrv', 'hu': 'hun', 'it': 'ita', 'ja': 'jpn', 'ko': 'kor', 'nb': 'nor',
+                     'nl': 'nld', 'no': 'nor',
+                     'pl': 'pol', 'pt': 'pot', 'ru': 'rus', 'sk': 'slv', 'sv': 'swe', 'zh': 'zho', '_1': 'srp'}
+    reverse_map_languages = {v: k for k, v in iteritems(map_languages)}
 
     def __init__(self, banners=False, posters=False, seasons=False, seasonwides=False, fanart=False, actors=False,
                  *args, **kwargs):
@@ -985,8 +1008,8 @@ class TVInfoBase(object):
         pass
 
     def get_show(self, show_id, load_episodes=True, banners=False, posters=False, seasons=False,
-                 seasonwides=False, fanart=False, actors=False, old_call=False, **kwargs):
-        # type: (integer_types, bool, bool, bool, bool, bool, bool, bool, bool, Optional[Any]) -> Optional[TVInfoShow]
+                 seasonwides=False, fanart=False, actors=False, old_call=False, language=None, **kwargs):
+        # type: (integer_types, bool, bool, bool, bool, bool, bool, bool, bool, AnyStr, Optional[Any]) -> Optional[TVInfoShow]
         """
         get data for show id
         :param show_id: id of show
@@ -998,12 +1021,14 @@ class TVInfoBase(object):
         :param fanart: load fanart
         :param actors: load actors
         :param old_call: load legacy call
+        :param language: set the request language
         :return: show object
         """
         if not old_call and None is self._old_config:
             self._old_config = self.config.copy()
             self.config.update({'banners_enabled': banners, 'posters_enabled': posters, 'seasons_enabled': seasons,
-                                'seasonwides_enabled': seasonwides, 'fanart_enabled': fanart, 'actors_enabled': actors})
+                                'seasonwides_enabled': seasonwides, 'fanart_enabled': fanart, 'actors_enabled': actors,
+                                'language': language or 'en'})
         self.shows.lock.acquire()
         try:
             if show_id not in self.shows:
@@ -1013,8 +1038,9 @@ class TVInfoBase(object):
                 try:
                     if self._must_load_data(show_id, load_episodes, banners, posters, seasons, seasonwides, fanart,
                                             actors):
-                        self._get_show_data(show_id, self.config['language'], load_episodes, banners, posters, seasons,
-                                            seasonwides, fanart, actors)
+                        self._get_show_data(show_id, self.map_languages.get(self.config['language'],
+                                                                            self.config['language']),
+                                            load_episodes, banners, posters, seasons, seasonwides, fanart, actors)
                         if None is self.shows[show_id].id:
                             with self.shows.lock:
                                 del self.shows[show_id]
@@ -1105,7 +1131,7 @@ class TVInfoBase(object):
             self.shows[sid][seas] = TVInfoSeason(show=self.shows[sid])
             self.shows[sid][seas].number = seas
         if ep not in self.shows[sid][seas]:
-            self.shows[sid][seas][ep] = TVInfoEpisode(season=self.shows[sid][seas])
+            self.shows[sid][seas][ep] = TVInfoEpisode(season=self.shows[sid][seas], show=self.shows[sid])
         if attrib not in ('cast', 'crew'):
             self.shows[sid][seas][ep][attrib] = value
         self.shows[sid][seas][ep].__dict__[attrib] = value
@@ -1242,6 +1268,23 @@ class TVInfoBase(object):
             log.warning(u'Skipped image with fanart aspect ratio but less than 500 pixels wide')
         else:
             log.warning(u'Skipped image with useless ratio %s' % img_ratio)
+
+    def _get_languages(self):
+        # type: (...) -> None
+        """
+        overwrite in class to create the language lists
+        """
+        pass
+
+    def get_languages(self):
+        # type: (...) -> List[Dict]
+        """
+        get all supported languages as list of dicts
+        [{'id': 'lang code', 'name': 'english name', 'nativeName': 'native name', 'sg_lang': 'sg lang code'}]
+        """
+        if None is self._supported_languages:
+            self._get_languages()
+        return self._supported_languages
 
     def __str__(self):
         return '<TVInfo(%s) (containing: %s)>' % (self.__class__.__name__, text_type(self.shows))

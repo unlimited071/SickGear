@@ -176,6 +176,11 @@ class BaseStaticFileHandler(StaticFileHandler):
             del kwargs['exc_info']
         return super(BaseStaticFileHandler, self).write_error(status_code, **kwargs)
 
+    def validate_absolute_path(self, root, absolute_path):
+        if '\\images\\flags\\' in absolute_path and not ek.ek(os.path.isfile, absolute_path):
+            absolute_path = re.sub(r'\\[^\\]+\.png$', '\\\\unknown.png', absolute_path)
+        return super(BaseStaticFileHandler, self).validate_absolute_path(root, absolute_path)
+
     def data_received(self, *args):
         pass
 
@@ -3956,15 +3961,20 @@ class AddShows(Home):
                         ids_search_used.update({k: v for k, v in iteritems(cur_result.get('ids', {}))
                                                 if v and k not in iterkeys(ids_to_search)})
                     else:
-                        results[cur_tvid][tv_src_id] = cur_result.copy()
+                        if type(cur_result) == dict:
+                            results[cur_tvid][tv_src_id] = cur_result.copy()
+                        else:
+                            results[cur_tvid][tv_src_id] = cur_result.to_dict()
                         results[cur_tvid][tv_src_id]['direct_id'] = \
                             (cur_tvid in ids_to_search and ids_to_search.get(cur_tvid)
                              and tv_src_id == ids_to_search.get(cur_tvid)) or \
                             (TVINFO_TVDB == cur_tvid and cur_result.get('slug') and
                              ids_to_search.get(TVINFO_TVDB_SLUG) == cur_result.get('slug')) or False
                         if results[cur_tvid][tv_src_id]['direct_id'] or \
-                                any(ids_to_search[si] == cur_result.get('ids', {})[si] for si in ids_to_search):
-                            ids_search_used.update({k: v for k, v in iteritems(cur_result.get('ids', {}))
+                                any(ids_to_search[si] == results[cur_tvid][tv_src_id].get('ids', {})[si]
+                                    for si in ids_to_search):
+                            ids_search_used.update({k: v for k, v in iteritems(
+                                results[cur_tvid][tv_src_id].get('ids',{}))
                                                     if v and k not in iterkeys(ids_to_search)})
                         results[cur_tvid][tv_src_id]['rename_suggest'] = '' \
                             if not results[cur_tvid][tv_src_id]['firstaired'] \
@@ -4062,10 +4072,10 @@ class AddShows(Home):
             return (grouped, combined)[as_combined]
 
         def sort_rel(data_result, is_last_sort, as_combined):
-            idx_rel_sort, idx_rel = 17, 17
+            idx_rel_sort, idx_rel, idx_direct = 17, 17, 27
             idx_title = 7
             idx_src = 2
-            rel_sorted = sorted(data_result, key=lambda x: (x[idx_rel], x[idx_title], x[idx_src]))
+            rel_sorted = sorted(data_result, key=lambda x: (not x[idx_direct], x[idx_rel], x[idx_title], x[idx_src]))
             combined = final_order(idx_rel_sort + 1, rel_sorted, is_last_sort)
 
             grouped = final_order(idx_rel_sort, sorted(rel_sorted, key=lambda x: (x[idx_src])), is_last_sort)
@@ -4101,6 +4111,10 @@ class AddShows(Home):
             img_url = 'imagecache?path=browse/thumb/tvmaze&filename=%s&trans=0&source=%s' % \
                       ('%s.jpg' % show_info['id'], show_info['image'])
             sickbeard.CACHE_IMAGE_URL_LIST.add_url(show_info['image'])
+        elif TVINFO_TMDB == iid and 'poster' in show_info and show_info['poster']:
+            img_url = 'imagecache?path=browse/thumb/tmdb&filename=%s&trans=0&source=%s' % \
+                      ('%s.jpg' % show_info['id'], show_info['poster'])
+            sickbeard.CACHE_IMAGE_URL_LIST.add_url(show_info['poster'])
         return img_url
 
     @classmethod

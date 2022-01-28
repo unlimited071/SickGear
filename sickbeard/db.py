@@ -719,6 +719,7 @@ def MigrationCode(my_db):
         20012: sickbeard.mainDB.RenameAllowBlockListTables,
         20013: sickbeard.mainDB.AddHistoryHideColumn,
         20014: sickbeard.mainDB.ChangeShowData,
+        20015: sickbeard.mainDB.ChangeTmdbID,
         # 20002: sickbeard.mainDB.AddCoolSickGearFeature3,
     }
 

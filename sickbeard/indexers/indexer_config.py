@@ -86,7 +86,7 @@ tvinfo_config = {
         api_params={},
         active=True,
         dupekey='tmdb',
-        mapped_only=True,
+        mapped_only=False,
         icon='tmdb16.png',
         people_url='https://www.themoviedb.org/person/%s',
     ),
