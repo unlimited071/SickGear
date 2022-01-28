@@ -28,8 +28,12 @@ import encodingKludge as ek
 
 from six import iteritems
 
+# noinspection PyUnreachableCode
+if False:
+    from _23 import DirEntry
+
 MIN_DB_VERSION = 9  # oldest db version we support migrating from
-MAX_DB_VERSION = 20015
+MAX_DB_VERSION = 20016
 TEST_BASE_VERSION = None  # the base production db version, only needed for TEST db versions (>=100000)
 
 
@@ -1750,7 +1754,7 @@ class AddHistoryHideColumn(db.SchemaUpgrade):
 # 20014 -> 20015
 class ChangeShowData(db.SchemaUpgrade):
     def execute(self):
-        db.backup_database(self.connection , 'sickbeard.db', self.checkDBVersion())
+        db.backup_database(self.connection, 'sickbeard.db', self.checkDBVersion())
 
         self.upgrade_log('Adding new data columns to tv_shows')
         self.addColumns('tv_shows', [('timezone', 'TEXT', ''), ('airtime', 'NUMERIC'),
@@ -1964,3 +1968,114 @@ class ChangeShowData(db.SchemaUpgrade):
             self.connection.action('VACUUM')
 
         return self.setDBVersion(20015)
+
+
+# 20015 -> 20016
+class ChangeTmdbID(db.SchemaUpgrade):
+    def execute(self):
+        from lib.tvinfo_base import TVINFO_TMDB, TVINFO_TMDB_OLD, TVINFO_TVDB, TVINFO_TVMAZE
+        from sg_helpers import move_file, scantree
+        from ..image_cache import ImageCache, cache_img_src
+        import re
+        self.upgrade_log('Renaming tmdb images')
+        # noinspection PyProtectedMember
+        for _dir in (ImageCache._persons_dir(), ImageCache._characters_dir()):
+            for _f in ek.ek(scantree, _dir):  # type: DirEntry
+                if not _f.is_file(follow_symlinks=False):
+                    continue
+                try:
+                    img_src = int(re.search(r'^(\d+)-', _f.name).group(1))
+                except (BaseException, Exception):
+                    continue
+                if img_src != TVINFO_TMDB_OLD and img_src not in cache_img_src:
+                    continue
+                try:
+                    move_file(_f.path,
+                              ek.ek(os.path.join, ek.ek(os.path.dirname, _f.path),
+                                    re.sub('^%s-' % img_src, '%s-' %
+                                           cache_img_src[(img_src, TVINFO_TMDB)[TVINFO_TMDB_OLD == img_src]], _f.name)))
+                except (BaseException, Exception):
+                    pass
+
+        db.backup_database(self.connection, 'sickbeard.db', self.checkDBVersion())
+        has_tmdb_backups = all(self.hasTable(_r) for _r in
+                               ('backup_tmdb_tv_shows', 'backup_tmdb_tv_episodes', 'backup_tmdb_indexer_mapping'))
+        if has_tmdb_backups:
+            self.upgrade_log('Checking for dupe shows in backup tables')
+            # get all ids from downgraded backup table = new tmdb id is used
+            backup_tmdb_show_ids = {_r['show_id'] for _r in
+                                    self.connection.select('SELECT show_id FROM backup_tmdb_tv_shows WHERE indexer = ?',
+                                                           [TVINFO_TMDB])}
+            if backup_tmdb_show_ids:
+                # get all mapped tmdb ids from current db = old tmdb id is used
+                current_mapped_tmdb_ids = {
+                    _r['mindexer_id'] for _r in
+                    self.connection.select('SELECT mindexer_id FROM indexer_mapping WHERE mindexer = ?',
+                                           [TVINFO_TMDB_OLD])}
+                # set of all dupe ids = these shows exists with other source already and can't be restored
+                dupe_ids = backup_tmdb_show_ids.intersection(current_mapped_tmdb_ids)
+                backup_mapped_tvdb_ids = {
+                    _r['mindexer_id']: _r['indexer_id'] for _r in
+                    self.connection.select('SELECT mindexer_id, indexer_id FROM backup_tmdb_indexer_mapping'
+                                           ' WHERE mindexer = ? AND indexer = ?', [TVINFO_TVDB, TVINFO_TMDB])}
+                current_tvdb_ids = {
+                    _r['show_id'] for _r in
+                    self.connection.select('SELECT show_id FROM tv_shows WHERE indexer = ?', [TVINFO_TVDB])}
+                dupe_tvdb_ids = current_tvdb_ids.intersection(backup_mapped_tvdb_ids.keys())
+                if dupe_tvdb_ids:
+                    dupe_ids += {_v for _k, _v in iteritems(backup_mapped_tvdb_ids) if _k in dupe_tvdb_ids}
+                backup_mapped_tvmaze_ids = {
+                    _r['mindexer_id']: _r['indexer_id'] for _r in
+                    self.connection.select('SELECT mindexer_id, indexer_id FROM backup_tmdb_indexer_mapping'
+                                           ' WHERE mindexer = ? AND indexer = ?', [TVINFO_TVMAZE, TVINFO_TVDB])}
+                current_tvmaze_ids = {
+                    _r['show_id'] for _r in
+                    self.connection.select('SELECT show_id FROM tv_shows WHERE indexer = ?', [TVINFO_TVMAZE])}
+                dupe_tvmaze_ids = current_tvmaze_ids.intersection(backup_mapped_tvmaze_ids.keys())
+                if dupe_tvmaze_ids:
+                    dupe_ids += {_v for _k, _v in iteritems(backup_mapped_tvdb_ids) if _k in dupe_tvmaze_ids}
+
+                if dupe_ids:
+                    self.upgrade_log('Dupe tmdb id detected, removing from backup')
+                    self.connection.action(
+                        'DELETE FROM tv_shows WHERE show_id IN (%s)' % ','.join(['?'] * len(dupe_ids)), list(dupe_ids))
+
+        self.upgrade_log('Changing tmdb id')
+        self.connection.mass_action([
+            ['UPDATE indexer_mapping SET indexer = ? WHERE indexer = ?', [TVINFO_TMDB, TVINFO_TMDB_OLD]],
+            ['UPDATE indexer_mapping SET mindexer = ? WHERE mindexer = ?', [TVINFO_TMDB, TVINFO_TMDB_OLD]],
+            ['UPDATE person_ids SET src = ? WHERE src = ?', [TVINFO_TMDB, TVINFO_TMDB_OLD]],
+            ['UPDATE character_ids SET src = ? WHERE src = ?', [TVINFO_TMDB, TVINFO_TMDB_OLD]],
+        ] + ([],
+        [
+            ['REPLACE INTO tv_shows '
+             '(show_id, indexer_id, indexer, show_name, location, network, genre, classification, runtime, quality,'
+             ' airs, status, flatten_folders, paused, startyear, air_by_date, lang, subtitles, notify_list, imdb_id,'
+             ' last_update_indexer, dvdorder, archive_firstmatch, rls_require_words, rls_ignore_words, sports, anime,'
+             ' scene, overview, tag, prune, rls_global_exclude_ignore, rls_global_exclude_require, timezone, airtime,'
+             ' network_country, network_country_code, network_id, network_is_stream, src_update_timestamp)'
+             ' SELECT show_id, indexer_id, indexer, show_name, location, network, genre, classification, runtime,'
+             ' quality, airs, status, flatten_folders, paused, startyear, air_by_date, lang, subtitles, notify_list,'
+             ' imdb_id, last_update_indexer, dvdorder, archive_firstmatch, rls_require_words, rls_ignore_words,'
+             ' sports, anime, scene, overview, tag, prune, rls_global_exclude_ignore, rls_global_exclude_require,'
+             ' timezone, airtime, network_country, network_country_code, network_id, network_is_stream,'
+             ' src_update_timestamp FROM backup_tmdb_tv_shows'],
+            ['REPLACE INTO tv_episodes '
+             '(episode_id, showid, indexerid, indexer, name, season, episode, description, airdate, hasnfo, hastbn,'
+             ' status, location, file_size, release_name, subtitles, subtitles_searchcount, subtitles_lastsearch,'
+             ' is_proper, scene_season, scene_episode, absolute_number, scene_absolute_number, release_group,'
+             ' version, timezone, airtime, runtime, timestamp, network, network_country, network_country_code,'
+             ' network_id, network_is_stream)'
+             ' SELECT episode_id, showid, indexerid, indexer, name, season, episode, description, airdate, hasnfo,'
+             ' hastbn, status, location, file_size, release_name, subtitles, subtitles_searchcount,'
+             ' subtitles_lastsearch, is_proper, scene_season, scene_episode, absolute_number, scene_absolute_number,'
+             ' release_group, version, timezone, airtime, runtime, timestamp, network, network_country,'
+             ' network_country_code, network_id, network_is_stream FROM backup_tmdb_tv_episodes'],
+            ['REPLACE INTO indexer_mapping (indexer_id, indexer, mindexer_id, mindexer, date, status)'
+             ' SELECT indexer_id, indexer, mindexer_id, mindexer, date, status FROM backup_tmdb_indexer_mapping'],
+        ])[has_tmdb_backups])
+        [self.connection.removeTable(_t) for _t in ('backup_tmdb_tv_shows', 'backup_tmdb_tv_episodes',
+                                                    'backup_tmdb_indexer_mapping')]
+
+        return self.setDBVersion(20016)
+

@@ -638,6 +638,7 @@ def _maybe_request_url(e, def_url=''):
 
 
 def clean_data(data):
+    # type: (Any) -> Any
     """Cleans up strings, lists, dicts returned
 
     Issues corrected:
@@ -652,6 +653,8 @@ def clean_data(data):
 
     if isinstance(data, list):
         return [clean_data(d) for d in data]
+    if isinstance(data, set):
+        return set(clean_data(d) for d in data)
     if isinstance(data, dict):
         return {k: clean_data(v) for k, v in iteritems(data)}
     if isinstance(data, string_types):
@@ -1705,3 +1708,14 @@ def spoken_height(height):
     :param height: height in cm
     """
     return convert_to_inch_faction_html(height).replace('\'', ' foot').replace('"', '')
+
+
+def iterate_chunk(lst, n):
+    # type: (List, integer_types) -> Iterator
+    """
+    Yield successive n-sized chunks from lst.
+    :param lst: list to split
+    :param n: length of chunks
+    """
+    for i in moves.range(0, len(lst), n):
+        yield lst[i:i + n]

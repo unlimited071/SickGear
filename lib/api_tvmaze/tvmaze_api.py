@@ -637,7 +637,7 @@ class TvMaze(TVInfoBase):
         if isinstance(ti_show.imdb_id, integer_types):
             ti_show.imdb_id = 'tt%07d' % ti_show.imdb_id
 
-        ti_episode = TVInfoEpisode()
+        ti_episode = TVInfoEpisode(show=ti_show)
         ti_episode.id = episode_data.maze_id
         ti_episode.seasonnumber = episode_data.season_number
         ti_episode.episodenumber = episode_data.episode_number
@@ -655,7 +655,6 @@ class TvMaze(TVInfoBase):
         ti_episode.is_special = episode_data.is_special()
         ti_episode.overview = clean_data(episode_data.summary)
         ti_episode.runtime = episode_data.runtime
-        ti_episode.show = ti_show
         return ti_episode
 
     def _filtered_schedule(self, **kwargs):

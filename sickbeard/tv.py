@@ -66,7 +66,7 @@ from six import integer_types, iteritems, itervalues, moves, PY2, string_types
 
 # noinspection PyUnreachableCode
 if False:
-    from typing import Any, AnyStr, Dict, List, Optional, Set, Text, Union
+    from typing import Any, AnyStr, Dict, List, Optional, Set, Text, Tuple, Union
     from sqlite3 import Row
     from lib.tvinfo_base import CastList, Character as TVINFO_Character, Person as TVINFO_Person, \
         TVInfoEpisode, TVInfoShow
@@ -2700,6 +2700,30 @@ class TVShow(TVShowBase):
             return datetime.time(hour=hour, minute=minute)
         return None
 
+    def _get_airtime(self):
+        # type: (...) -> Tuple[Optional[datetime.time], Optional[string_types], Optional[string_types]]
+        """
+        try to get airtime from trakt
+        """
+        try:
+            tvinfo_config = sickbeard.TVInfoAPI(TVINFO_TRAKT).api_params.copy()
+            t = sickbeard.TVInfoAPI(TVINFO_TRAKT).setup(**tvinfo_config)
+            results = t.search_show(ids={self._tvid: self._prodid})
+            for _r in results:
+                if 'show' != _r['type']:
+                    continue
+                if _r['ids'][TVINFO_TMDB] == self._prodid:
+                    try:
+                        h, m = _r['airs']['time'].split(':')
+                        h, m = try_int(h, None), try_int(m, None)
+                        if None is not h and None is not m:
+                            return datetime.time(hour=h, minute=m), _r['airs'].get('time'), _r['airs'].get('day')
+                    except (BaseException, Exception):
+                        continue
+        except (BaseException, Exception):
+            return None, None, None
+        return None, None, None
+
     def load_from_tvinfo(self, cache=True, tvapi=None, tvinfo_data=None, scheduled_update=False, switch=False):
         # type: (bool, bool, TVInfoShow, bool, bool) -> Optional[Union[bool, TVInfoShow]]
         """
@@ -2771,6 +2795,10 @@ class TVShow(TVShowBase):
                     indexermapper.map_indexers_to_show(self, recheck=True)
             except (BaseException, Exception):
                 pass
+
+        # tmdb doesn't provide air time, try to get it from other source
+        if TVINFO_TMDB == self._tvid and None is show_info.time:
+            show_info.time, show_info.airs_time, show_info.airs_dayofweek = self._get_airtime()
 
         if None is not getattr(show_info, 'airs_dayofweek', None) and None is not getattr(show_info, 'airs_time', None):
             self.airs = ('%s %s' % (show_info['airs_dayofweek'], show_info['airs_time'])).strip()
