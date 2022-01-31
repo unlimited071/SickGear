@@ -308,14 +308,17 @@ class TmdbIndexer(TVInfoBase):
                         votes=i['vote_count']
                     ))
 
+        person_imdb_id = person_obj.get('imdb_id') and try_int(person_obj['imdb_id'].replace('nm', ''), None)
+        person_ids = {TVINFO_TMDB: person_obj.get('id')}
+        if person_imdb_id:
+            person_ids.update({TVINFO_IMDB: person_imdb_id})
         return Person(
             p_id=person_obj.get('id'), gender=gender, name=clean_data(person_obj.get('name')), birthdate=birthdate,
             deathdate=deathdate, bio=clean_data(person_obj.get('biography')),
             birthplace=clean_data(person_obj.get('place_of_birth')),
             homepage=person_obj.get('homepage'), characters=characters, image=main_image,
             thumb_url=main_thumb, images=image_list, akas=clean_data(set(person_obj.get('also_known_as') or [])),
-            ids={TVINFO_TMDB: person_obj.get('id'),
-                 TVINFO_IMDB: person_obj.get('imdb_id') and try_int(person_obj['imdb_id'].replace('nm', ''), None)}
+            ids=person_ids
         )
 
     def _search_person(self, name=None, ids=None):

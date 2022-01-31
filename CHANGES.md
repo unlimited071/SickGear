@@ -9,6 +9,11 @@
 * Add direct match to relative sort as first priority of search results.
 
 
+[develop changelog]
+
+* Change only add IMDb person id when available to Tmdb Person
+
+
 ### 0.25.27 (2022-03-03 11:50:00 UTC)
 
 * Fix don't use invalid timestamps for episodes
