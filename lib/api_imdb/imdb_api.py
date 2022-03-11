@@ -8,21 +8,24 @@ __api_version__ = '1.0.0'
 
 import logging
 import re
-from .imdb_exceptions import *
-from exceptions_helper import ex
-from six import iteritems
+
+# from .imdb_exceptions import *
 from bs4_parser import BS4Parser
+from exceptions_helper import ex
 from lib import imdbpie
-from lib.tvinfo_base.exceptions import BaseTVinfoShownotfound
-from lib.tvinfo_base import TVInfoBase, TVINFO_TRAKT, TVINFO_TMDB, TVINFO_TVDB, TVINFO_TVRAGE, TVINFO_IMDB, \
-    Person, PersonGenders, TVINFO_TWITTER, TVINFO_FACEBOOK, TVINFO_WIKIPEDIA, TVINFO_INSTAGRAM, Character, TVInfoShow, \
-    TVInfoIDs
-from sg_helpers import get_url, try_int
+# from lib.tvinfo_base.exceptions import BaseTVinfoShownotfound
+from lib.tvinfo_base import PersonGenders, TVInfoBase, TVInfoIDs, TVInfoCharacter, TVInfoPerson, TVInfoShow, \
+    TVINFO_IMDB
+# , TVINFO_TMDB, TVINFO_TRAKT, TVINFO_TVDB, TVINFO_TVRAGE, \
+# TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER, TVINFO_WIKIPEDIA
+
 from lib.dateutil.parser import parser
+from sg_helpers import get_url, try_int
+from six import iteritems
 
 # noinspection PyUnreachableCode
 if False:
-    from typing import Any, AnyStr, Dict, List, Optional, Union
+    from typing import Any, AnyStr, Dict, List, Optional
     from six import integer_types
 
 tz_p = parser()
@@ -103,7 +106,7 @@ class IMDbIndexer(TVInfoBase):
     def _convert_person(person_obj, filmography=None, bio=None):
         if isinstance(person_obj, dict) and 'imdb_id' in person_obj:
             imdb_id = try_int(re.search(r'(\d+)', person_obj['imdb_id']).group(1))
-            return Person(p_id=imdb_id, name=person_obj['name'], ids={TVINFO_IMDB: imdb_id})
+            return TVInfoPerson(p_id=imdb_id, name=person_obj['name'], ids={TVINFO_IMDB: imdb_id})
         characters = []
         for known_for in (filmography and filmography['filmography']) or []:
             if known_for['titleType'] not in ('tvSeries', 'tvMiniSeries'):
@@ -115,8 +118,8 @@ class IMDbIndexer(TVInfoBase):
                 show.seriesname = known_for.get('title')
                 show.firstaired = known_for.get('year')
                 characters.append(
-                    Character(name=character, show=show, start_year=known_for.get('startYear'),
-                              end_year=known_for.get('endYear'))
+                    TVInfoCharacter(name=character, show=show, start_year=known_for.get('startYear'),
+                                    end_year=known_for.get('endYear'))
                 )
         try:
             birthdate = person_obj['base']['birthDate'] and tz_p.parse(person_obj['base']['birthDate']).date()
@@ -127,20 +130,20 @@ class IMDbIndexer(TVInfoBase):
         except (BaseException, Exception):
             deathdate = None
         imdb_id = try_int(re.search(r'(\d+)', person_obj['id']).group(1))
-        return Person(p_id=imdb_id, name=person_obj['base'].get('name'), ids={TVINFO_IMDB: imdb_id},
-                      gender=PersonGenders.imdb_map.get(person_obj['base'].get('gender'), PersonGenders.unknown),
-                      image=person_obj['base'].get('image', {}).get('url'),
-                      birthplace=person_obj['base'].get('birthPlace'), birthdate=birthdate, deathdate=deathdate,
-                      height=person_obj['base'].get('heightCentimeters'), characters=characters,
-                      deathplace=person_obj['base'].get('deathPlace'),
-                      nicknames=set((person_obj['base'].get('nicknames') and person_obj['base'].get('nicknames'))
+        return TVInfoPerson(p_id=imdb_id, name=person_obj['base'].get('name'), ids={TVINFO_IMDB: imdb_id},
+                            gender=PersonGenders.imdb_map.get(person_obj['base'].get('gender'), PersonGenders.unknown),
+                            image=person_obj['base'].get('image', {}).get('url'),
+                            birthplace=person_obj['base'].get('birthPlace'), birthdate=birthdate, deathdate=deathdate,
+                            height=person_obj['base'].get('heightCentimeters'), characters=characters,
+                            deathplace=person_obj['base'].get('deathPlace'),
+                            nicknames=set((person_obj['base'].get('nicknames') and person_obj['base'].get('nicknames'))
                                     or []),
-                      real_name=person_obj['base'].get('realName'),
-                      akas=set((person_obj['base'].get('akas') and person_obj['base'].get('akas')) or []), bio=bio
-                      )
+                            real_name=person_obj['base'].get('realName'),
+                            akas=set((person_obj['base'].get('akas') and person_obj['base'].get('akas')) or []), bio=bio
+                            )
 
     def _search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         """
         search for person by name
         :param name: name to search for
@@ -188,7 +191,7 @@ class IMDbIndexer(TVInfoBase):
             return
 
     def get_person(self, p_id, get_show_credits=False, get_images=False, **kwargs):
-        # type: (integer_types, bool, bool, Any) -> Optional[Person]
+        # type: (integer_types, bool, bool, Any) -> Optional[TVInfoPerson]
         if not p_id:
             return
         cache_main_key, cache_bio_key, cache_credits_key = 'p-main-%s' % p_id, 'p-bio-%s' % p_id, 'p-credits-%s' % p_id

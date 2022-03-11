@@ -370,8 +370,6 @@ class TVInfoShow(dict):
                 setattr(result, k, copy.deepcopy(v, memo))
         for k, v in self.items():
             result[k] = copy.deepcopy(v, memo)
-            if isinstance(k, integer_types):
-                setattr(result[k], 'show', result)
         return result
 
     def __bool__(self):
@@ -429,7 +427,7 @@ class TVInfoSeason(dict):
         self.number = None  # type: integer_types
         self.name = None  # type: Optional[AnyStr]
         self.actors = []  # type: List[Dict]
-        self.cast = CastList()  # type: Dict[integer_types, Character]
+        self.cast = CastList()  # type: Dict[integer_types, TVInfoCharacter]
         self.network = None  # type: Optional[AnyStr]
         self.network_id = None  # type: integer_types
         self.network_timezone = None  # type: Optional[AnyStr]
@@ -467,8 +465,6 @@ class TVInfoSeason(dict):
             setattr(result, k, copy.deepcopy(v, memo))
         for k, v in self.items():
             result[k] = copy.deepcopy(v, memo)
-            if isinstance(k, integer_types):
-                setattr(result[k], 'season', result)
         return result
 
     def search(self, term=None, key=None):
@@ -500,7 +496,7 @@ class TVInfoEpisode(dict):
         self.actors = []  # type: List[Dict]
         self.gueststars = None  # type: Optional[AnyStr]
         self.gueststars_list = []  # type: List[AnyStr]
-        self.cast = CastList()  # type: Dict[integer_types, Character]
+        self.cast = CastList()  # type: Dict[integer_types, TVInfoCharacter]
         self.directors = []  # type: List[AnyStr]
         self.writer = None  # type: Optional[AnyStr]
         self.writers = []  # type: List[AnyStr]
@@ -608,7 +604,7 @@ class CastList(Persons):
         super(CastList, self).__init__(**kwargs)
         for t in iterkeys(RoleTypes.reverse):
             if t < RoleTypes.crew_limit:
-                self[t] = []  # type: List[Character]
+                self[t] = []  # type: List[TVInfoCharacter]
 
     def __str__(self):
         persons_count = []
@@ -718,15 +714,15 @@ class Crew(PersonBase):
     __repr__ = __str__
 
 
-class Person(PersonBase):
+class TVInfoPerson(PersonBase):
     def __init__(self, p_id=None, name=None, image=None, images=None, thumb_url=None, gender=None, bio=None, birthdate=None, deathdate=None,
                  country=None, country_code=None, country_timezone=None, ids=None, homepage=None, social_ids=None,
                  birthplace=None, url=None, characters=None, height=None, deathplace=None, nicknames=None,
                  real_name=None, akas=None, **kwargs):
-        # type: (integer_types, AnyStr, Optional[AnyStr], List[TVInfoImage], AnyStr, int, AnyStr, datetime.date, datetime.date, AnyStr, AnyStr, AnyStr, Dict, AnyStr, Dict, AnyStr, AnyStr, List[Character], Union[integer_types, float], AnyStr, Set[AnyStr], AnyStr, Set[AnyStr], Dict) -> Person
-        super(Person, self).__init__(p_id=p_id, name=name, image=image, thumb_url=thumb_url, gender=gender, bio=bio,
-                                     birthdate=birthdate, deathdate=deathdate, country=country, images=images,
-                                     country_code=country_code, country_timezone=country_timezone, ids=ids, **kwargs)
+        # type: (integer_types, AnyStr, Optional[AnyStr], List[TVInfoImage], AnyStr, int, AnyStr, datetime.date, datetime.date, AnyStr, AnyStr, AnyStr, Dict, AnyStr, Dict, AnyStr, AnyStr, List[TVInfoCharacter], Union[integer_types, float], AnyStr, Set[AnyStr], AnyStr, Set[AnyStr], Dict) -> TVInfoPerson
+        super(TVInfoPerson, self).__init__(p_id=p_id, name=name, image=image, thumb_url=thumb_url, gender=gender, bio=bio,
+                                           birthdate=birthdate, deathdate=deathdate, country=country, images=images,
+                                           country_code=country_code, country_timezone=country_timezone, ids=ids, **kwargs)
         self.credits = []  # type: List
         self.homepage = homepage  # type: Optional[AnyStr]
         self.social_ids = social_ids or {}  # type: Dict
@@ -737,7 +733,7 @@ class Person(PersonBase):
         self.url = url  # type: Optional[AnyStr]
         self.height = height  # type: Optional[Union[integer_types, float]]
         self.akas = akas or set()  # type: Set[AnyStr]
-        self.characters = characters or []  # type: List[Character]
+        self.characters = characters or []  # type: List[TVInfoCharacter]
 
     def __str__(self):
         return '<Person "%s">' % self.name
@@ -745,12 +741,12 @@ class Person(PersonBase):
     __repr__ = __str__
 
 
-class Character(PersonBase):
+class TVInfoCharacter(PersonBase):
     def __init__(self, person=None, voice=None, plays_self=None, regular=None, show=None, start_year=None,
                  end_year=None, **kwargs):
-        # type: (List[Person], bool, bool, bool, TVInfoShow, int, int, Dict) -> Character
-        super(Character, self).__init__(**kwargs)
-        self.person = person  # type: List[Person]
+        # type: (List[TVInfoPerson], bool, bool, bool, TVInfoShow, int, int, Dict) -> TVInfoCharacter
+        super(TVInfoCharacter, self).__init__(**kwargs)
+        self.person = person  # type: List[TVInfoPerson]
         self.voice = voice  # type: Optional[bool]
         self.plays_self = plays_self  # type: Optional[bool]
         self.regular = regular  # type: Optional[bool]
@@ -948,7 +944,7 @@ class TVInfoBase(object):
             log.error('Error setting %s to cache: %s' % (key, ex(e)))
 
     def get_person(self, p_id, get_show_credits=False, get_images=False, **kwargs):
-        # type: (integer_types, bool, bool, Any) -> Optional[Person]
+        # type: (integer_types, bool, bool, Any) -> Optional[TVInfoPerson]
         """
         get person's data for id or list of matching persons for name
 
@@ -960,7 +956,7 @@ class TVInfoBase(object):
         pass
 
     def _search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         """
         search for person by name
         :param name: name to search for
@@ -970,7 +966,7 @@ class TVInfoBase(object):
         return []
 
     def search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         """
         search for person by name
         :param name: name to search for

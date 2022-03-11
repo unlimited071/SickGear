@@ -1491,6 +1491,10 @@ class QueueItemUpdate(ShowQueueItem):
                                                               after_update=True, force_image_cache=self.force_web,
                                                               **self.kwargs)
 
+    def finish(self):
+        self.tvinfo_data = None
+        super(QueueItemUpdate, self).finish()
+
 
 class QueueItemForceUpdate(QueueItemUpdate):
     def __init__(self, show_obj=None, scheduled_update=False, **kwargs):

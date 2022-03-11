@@ -6,7 +6,7 @@ from six import iteritems
 from .trakt import TraktAPI
 from lib.tvinfo_base.exceptions import BaseTVinfoShownotfound
 from lib.tvinfo_base import TVInfoBase, TVINFO_TRAKT, TVINFO_TMDB, TVINFO_TVDB, TVINFO_TVRAGE, TVINFO_IMDB, \
-    TVINFO_SLUG, Person, TVINFO_TWITTER, TVINFO_FACEBOOK, TVINFO_WIKIPEDIA, TVINFO_INSTAGRAM, Character, TVInfoShow, \
+    TVINFO_SLUG, TVInfoPerson, TVINFO_TWITTER, TVINFO_FACEBOOK, TVINFO_WIKIPEDIA, TVINFO_INSTAGRAM, TVInfoCharacter, TVInfoShow, \
     TVInfoIDs, TVINFO_TRAKT_SLUG
 from sg_helpers import try_int
 from lib.dateutil.parser import parser
@@ -230,7 +230,7 @@ class TraktIndexer(TVInfoBase):
 
     @staticmethod
     def _convert_person_obj(person_obj):
-        # type: (Dict) -> Person
+        # type: (Dict) -> TVInfoPerson
         try:
             birthdate = person_obj['birthday'] and tz_p.parse(person_obj['birthday']).date()
         except (BaseException, Exception):
@@ -240,19 +240,19 @@ class TraktIndexer(TVInfoBase):
         except (BaseException, Exception):
             deathdate = None
 
-        return Person(p_id=person_obj['ids']['trakt'],
-                      name=person_obj['name'],
-                      bio=person_obj['biography'],
-                      birthdate=birthdate,
-                      deathdate=deathdate,
-                      homepage=person_obj['homepage'],
-                      birthplace=person_obj['birthplace'],
-                      social_ids={TVINFO_TWITTER: person_obj['social_ids']['twitter'],
+        return TVInfoPerson(p_id=person_obj['ids']['trakt'],
+                            name=person_obj['name'],
+                            bio=person_obj['biography'],
+                            birthdate=birthdate,
+                            deathdate=deathdate,
+                            homepage=person_obj['homepage'],
+                            birthplace=person_obj['birthplace'],
+                            social_ids={TVINFO_TWITTER: person_obj['social_ids']['twitter'],
                                   TVINFO_FACEBOOK: person_obj['social_ids']['facebook'],
                                   TVINFO_INSTAGRAM: person_obj['social_ids']['instagram'],
                                   TVINFO_WIKIPEDIA: person_obj['social_ids']['wikipedia']
                                   },
-                      ids={TVINFO_TRAKT: person_obj['ids']['trakt'], TVINFO_SLUG: person_obj['ids']['slug'],
+                            ids={TVINFO_TRAKT: person_obj['ids']['trakt'], TVINFO_SLUG: person_obj['ids']['slug'],
                            TVINFO_IMDB:
                                person_obj['ids']['imdb'] and
                                try_int(person_obj['ids']['imdb'].replace('nm', ''), None),
@@ -260,7 +260,7 @@ class TraktIndexer(TVInfoBase):
                            TVINFO_TVRAGE: person_obj['ids']['tvrage']})
 
     def get_person(self, p_id, get_show_credits=False, get_images=False, **kwargs):
-        # type: (integer_types, bool, bool, Any) -> Optional[Person]
+        # type: (integer_types, bool, bool, Any) -> Optional[TVInfoPerson]
         """
         get person's data for id or list of matching persons for name
 
@@ -306,7 +306,7 @@ class TraktIndexer(TVInfoBase):
                             show.genre_list = c['show']['genres']
                             for ch in c.get('characters') or []:
                                 pc.append(
-                                    Character(
+                                    TVInfoCharacter(
                                         name=ch, regular=c.get('series_regular'),
                                         show=show
                                     )
@@ -321,7 +321,7 @@ class TraktIndexer(TVInfoBase):
         return result
 
     def _search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         urls, result, ids = [], [], ids or {}
         for tv_src in self.supported_person_id_searches:
             if tv_src in ids:

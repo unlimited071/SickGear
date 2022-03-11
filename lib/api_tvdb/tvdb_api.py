@@ -33,7 +33,7 @@ from sickbeard import ENV
 from lib.cachecontrol import CacheControl, caches
 from lib.dateutil.parser import parse
 from lib.exceptions_helper import ConnectionSkipException
-from lib.tvinfo_base import CastList, Character, CrewList, Person, RoleTypes, \
+from lib.tvinfo_base import CastList, TVInfoCharacter, CrewList, TVInfoPerson, RoleTypes, \
     TVINFO_TVDB, TVINFO_TVDB_SLUG, TVInfoBase, TVInfoIDs
 
 from .tvdb_exceptions import TvdbError, TvdbShownotfound, TvdbTokenexpired
@@ -957,8 +957,9 @@ class Tvdb(TVInfoBase):
                                      },
                           })
                 cast[RoleTypes.ActorMain].append(
-                    Character(p_id=character_id, name=character_name,
-                              person=[Person(p_id=person_id, name=person_name)], image=role_image))
+                    TVInfoCharacter(p_id=character_id, name=character_name,
+                                    person=[TVInfoPerson(p_id=person_id, name=person_name)], image=role_image,
+                                    show=self.shows[sid]))
         except (BaseException, Exception):
             pass
         self._set_show_data(sid, 'actors', a)
@@ -1206,17 +1207,18 @@ class Tvdb(TVInfoBase):
                 cast = CastList()
                 try:
                     for director in cur_ep.get('directors', []):
-                        crew[RoleTypes.CrewDirector].append(Person(name=director))
+                        crew[RoleTypes.CrewDirector].append(TVInfoPerson(name=director))
                 except (BaseException, Exception):
                     pass
                 try:
                     for guest in cur_ep.get('gueststars_list', []):
-                        cast[RoleTypes.ActorGuest].append(Character(person=[Person(name=guest)]))
+                        cast[RoleTypes.ActorGuest].append(TVInfoCharacter(person=[TVInfoPerson(name=guest)],
+                                                                          show=self.shows[sid]))
                 except (BaseException, Exception):
                     pass
                 try:
                     for writers in cur_ep.get('writers', []):
-                        crew[RoleTypes.CrewWriter].append(Person(name=writers))
+                        crew[RoleTypes.CrewWriter].append(TVInfoPerson(name=writers))
                 except (BaseException, Exception):
                     pass
                 self._set_item(sid, seas_no, ep_no, 'crew', crew)
