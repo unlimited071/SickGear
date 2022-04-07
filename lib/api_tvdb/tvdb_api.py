@@ -957,9 +957,9 @@ class Tvdb(TVInfoBase):
                                      },
                           })
                 cast[RoleTypes.ActorMain].append(
-                    TVInfoCharacter(p_id=character_id, name=character_name,
-                                    person=[TVInfoPerson(p_id=person_id, name=person_name)], image=role_image,
-                                    show=self.shows[sid]))
+                    TVInfoCharacter(
+                        p_id=character_id, name=character_name, person=[TVInfoPerson(p_id=person_id, name=person_name)],
+                        image=role_image, show=self.shows[sid]))
         except (BaseException, Exception):
             pass
         self._set_show_data(sid, 'actors', a)

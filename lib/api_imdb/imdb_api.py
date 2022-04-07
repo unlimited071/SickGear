@@ -18,9 +18,9 @@ from lib.tvinfo_base import PersonGenders, TVInfoBase, TVInfoIDs, TVInfoCharacte
     TVINFO_IMDB
 # , TVINFO_TMDB, TVINFO_TRAKT, TVINFO_TVDB, TVINFO_TVRAGE, \
 # TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER, TVINFO_WIKIPEDIA
-
 from lib.dateutil.parser import parser
 from sg_helpers import get_url, try_int
+
 from six import iteritems
 
 # noinspection PyUnreachableCode
@@ -118,8 +118,8 @@ class IMDbIndexer(TVInfoBase):
                 show.seriesname = known_for.get('title')
                 show.firstaired = known_for.get('year')
                 characters.append(
-                    TVInfoCharacter(name=character, show=show, start_year=known_for.get('startYear'),
-                                    end_year=known_for.get('endYear'))
+                    TVInfoCharacter(name=character, show=show,
+                                    start_year=known_for.get('startYear'), end_year=known_for.get('endYear'))
                 )
         try:
             birthdate = person_obj['base']['birthDate'] and tz_p.parse(person_obj['base']['birthDate']).date()
@@ -130,17 +130,17 @@ class IMDbIndexer(TVInfoBase):
         except (BaseException, Exception):
             deathdate = None
         imdb_id = try_int(re.search(r'(\d+)', person_obj['id']).group(1))
-        return TVInfoPerson(p_id=imdb_id, name=person_obj['base'].get('name'), ids={TVINFO_IMDB: imdb_id},
-                            gender=PersonGenders.imdb_map.get(person_obj['base'].get('gender'), PersonGenders.unknown),
-                            image=person_obj['base'].get('image', {}).get('url'),
-                            birthplace=person_obj['base'].get('birthPlace'), birthdate=birthdate, deathdate=deathdate,
-                            height=person_obj['base'].get('heightCentimeters'), characters=characters,
-                            deathplace=person_obj['base'].get('deathPlace'),
-                            nicknames=set((person_obj['base'].get('nicknames') and person_obj['base'].get('nicknames'))
-                                    or []),
-                            real_name=person_obj['base'].get('realName'),
-                            akas=set((person_obj['base'].get('akas') and person_obj['base'].get('akas')) or []), bio=bio
-                            )
+        return TVInfoPerson(
+            p_id=imdb_id, ids={TVINFO_IMDB: imdb_id}, characters=characters,
+            name=person_obj['base'].get('name'), real_name=person_obj['base'].get('realName'),
+            nicknames=set((person_obj['base'].get('nicknames') and person_obj['base'].get('nicknames')) or []),
+            akas=set((person_obj['base'].get('akas') and person_obj['base'].get('akas')) or []),
+            bio=bio, gender=PersonGenders.imdb_map.get(person_obj['base'].get('gender'), PersonGenders.unknown),
+            image=person_obj['base'].get('image', {}).get('url'),
+            birthdate=birthdate, birthplace=person_obj['base'].get('birthPlace'),
+            deathdate=deathdate, deathplace=person_obj['base'].get('deathPlace'),
+            height=person_obj['base'].get('heightCentimeters')
+        )
 
     def _search_person(self, name=None, ids=None):
         # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]

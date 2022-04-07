@@ -11,16 +11,18 @@ import datetime
 import json
 import logging
 
-from six import iteritems
-from sg_helpers import clean_data, get_url, iterate_chunk, try_int
-from _23 import filter_list
 from lib import tmdbsimple
 from lib.dateutil.parser import parser
 from lib.exceptions_helper import ConnectionSkipException, ex
-from lib.tvinfo_base import TVInfoCharacter, TVInfoPerson, PersonGenders, \
-    TVInfoBase, TVInfoIDs, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoNetwork, TVInfoShow, TVInfoSocialIDs, \
-    TVINFO_IMDB, TVINFO_TMDB, TVINFO_TVDB, TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER, \
-    TVInfoSeason, TVInfoEpisode, RoleTypes, CastList
+from lib.tvinfo_base import CastList, PersonGenders, RoleTypes, \
+    TVInfoBase, TVInfoIDs, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoNetwork, TVInfoSocialIDs, \
+    TVInfoCharacter, TVInfoPerson, TVInfoShow, TVInfoEpisode, TVInfoSeason, \
+    TVINFO_IMDB, TVINFO_TMDB, TVINFO_TVDB, \
+    TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER
+from sg_helpers import clean_data, get_url, iterate_chunk, try_int
+
+from _23 import filter_list
+from six import iteritems
 
 # noinspection PyUnreachableCode
 if False:
@@ -313,12 +315,12 @@ class TmdbIndexer(TVInfoBase):
         if person_imdb_id:
             person_ids.update({TVINFO_IMDB: person_imdb_id})
         return TVInfoPerson(
-            p_id=person_obj.get('id'), gender=gender, name=clean_data(person_obj.get('name')), birthdate=birthdate,
-            deathdate=deathdate, bio=clean_data(person_obj.get('biography')),
-            birthplace=clean_data(person_obj.get('place_of_birth')),
-            homepage=person_obj.get('homepage'), characters=characters, image=main_image,
-            thumb_url=main_thumb, images=image_list, akas=clean_data(set(person_obj.get('also_known_as') or [])),
-            ids=person_ids
+            p_id=person_obj.get('id'), ids=person_ids, characters=characters,
+            name=clean_data(person_obj.get('name')), akas=clean_data(set(person_obj.get('also_known_as') or [])),
+            bio=clean_data(person_obj.get('biography')), gender=gender,
+            image=main_image, images=image_list, thumb_url=main_thumb,
+            birthdate=birthdate, birthplace=clean_data(person_obj.get('place_of_birth')),
+            deathdate=deathdate, homepage=person_obj.get('homepage')
         )
 
     def _search_person(self, name=None, ids=None):

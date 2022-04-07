@@ -3,10 +3,11 @@
 * Add support for scene episode number to multiple episodes
 * Add TMDB TV info source
 * Change return unknown.png flag if a requested flag image file doesn't exist
-* Change use regular cast from season as show cast.
-* Change prefer recent cast in cast order.
-* Change filter non main appearance of main cast persons.
-* Add direct match to relative sort as first priority of search results.
+* Change use regular cast from season as show cast
+* Change prefer recent cast in cast order
+* Change filter non main appearance of main cast persons
+* Add direct match to relative sort as first priority of search results
+* Change improve memory management
 
 
 [develop changelog]

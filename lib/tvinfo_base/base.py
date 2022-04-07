@@ -6,8 +6,10 @@ import threading
 import shutil
 import time
 from exceptions_helper import ex
+
 from six import integer_types, iteritems, iterkeys, string_types, text_type
 from _23 import list_items, list_values
+
 from lib.tvinfo_base.exceptions import *
 from sg_helpers import calc_age, make_path
 
@@ -114,8 +116,16 @@ class ShowContainer(dict):
 
 
 class TVInfoIDs(object):
-    def __init__(self, tvdb=None, tmdb=None, tvmaze=None, imdb=None, trakt=None, rage=None, ids=None):
-        # type: (integer_types, integer_types, integer_types, integer_types, integer_types, integer_types, Dict[int, integer_types]) -> TVInfoIDs
+    def __init__(
+            self,
+            tvdb=None,  # type: integer_types
+            tmdb=None,  # type: integer_types
+            tvmaze=None,  # type: integer_types
+            imdb=None,  # type: integer_types
+            trakt=None,  # type: integer_types
+            rage=None,  # type: integer_types
+            ids=None  # type: Dict[int, integer_types]
+    ):  # type: (...) -> TVInfoIDs
         ids = ids or {}
         self.tvdb = tvdb or ids.get(TVINFO_TVDB)
         self.tmdb = tmdb or ids.get(TVINFO_TMDB)
@@ -648,10 +658,23 @@ class PersonBase(dict):
     role,
     sortorder
     """
-    def __init__(self, p_id=None, name=None, image=None, images=None, gender=None, bio=None, birthdate=None,
-                 deathdate=None, country=None, country_code=None, country_timezone=None, ids=None, thumb_url=None,
-                 **kwargs):
-        # type: (integer_types, AnyStr, AnyStr, List[TVInfoImage], int, AnyStr, datetime.date, datetime.date, AnyStr, AnyStr, AnyStr, Dict, AnyStr, Dict) -> PersonBase
+    def __init__(
+            self,  # type:
+            p_id=None,  # type: integer_types
+            name=None,  # type: AnyStr
+            image=None,  # type: AnyStr
+            images=None,  # type: List[TVInfoImage]
+            gender=None,  # type: int
+            bio=None,  # type: AnyStr
+            birthdate=None,  # type: datetime.date
+            deathdate=None,  # type: datetime.date
+            country=None,  # type: AnyStr
+            country_code=None,  # type: AnyStr
+            country_timezone=None,  # type: AnyStr
+            ids=None,  # type: Dict
+            thumb_url=None,  # type: AnyStr
+            **kwargs  # type: Dict
+    ):  # type: (...) -> PersonBase
         super(PersonBase, self).__init__(**kwargs)
         self.id = p_id  # type: Optional[integer_types]
         self.name = name  # type: Optional[AnyStr]
@@ -715,14 +738,37 @@ class Crew(PersonBase):
 
 
 class TVInfoPerson(PersonBase):
-    def __init__(self, p_id=None, name=None, image=None, images=None, thumb_url=None, gender=None, bio=None, birthdate=None, deathdate=None,
-                 country=None, country_code=None, country_timezone=None, ids=None, homepage=None, social_ids=None,
-                 birthplace=None, url=None, characters=None, height=None, deathplace=None, nicknames=None,
-                 real_name=None, akas=None, **kwargs):
-        # type: (integer_types, AnyStr, Optional[AnyStr], List[TVInfoImage], AnyStr, int, AnyStr, datetime.date, datetime.date, AnyStr, AnyStr, AnyStr, Dict, AnyStr, Dict, AnyStr, AnyStr, List[TVInfoCharacter], Union[integer_types, float], AnyStr, Set[AnyStr], AnyStr, Set[AnyStr], Dict) -> TVInfoPerson
-        super(TVInfoPerson, self).__init__(p_id=p_id, name=name, image=image, thumb_url=thumb_url, gender=gender, bio=bio,
-                                           birthdate=birthdate, deathdate=deathdate, country=country, images=images,
-                                           country_code=country_code, country_timezone=country_timezone, ids=ids, **kwargs)
+    def __init__(
+            self,
+            p_id=None,  # type: integer_types
+            name=None,  # type: AnyStr
+            image=None,  # type: Optional[AnyStr]
+            images=None,  # type: List[TVInfoImage]
+            thumb_url=None,  # type: AnyStr
+            gender=None,  # type: int
+            bio=None,  # type: AnyStr
+            birthdate=None,  # type: datetime.date
+            deathdate=None,  # type: datetime.date
+            country=None,  # type: AnyStr
+            country_code=None,  # type: AnyStr
+            country_timezone=None,  # type: AnyStr
+            ids=None,  # type: Dict
+            homepage=None,  # type: AnyStr
+            social_ids=None,  # type: Dict
+            birthplace=None,  # type: AnyStr
+            url=None,  # type: AnyStr
+            characters=None,  # type: List[TVInfoCharacter]
+            height=None,  # type: Union[integer_types, float]
+            deathplace=None,  # type: AnyStr
+            nicknames=None,  # type: Set[AnyStr]
+            real_name=None,  # type: AnyStr
+            akas=None,  # type: Set[AnyStr]
+            **kwargs  # type: Dict
+    ):  # type: (...) -> TVInfoPerson
+        super(TVInfoPerson, self).__init__(
+            p_id=p_id, name=name, image=image, thumb_url=thumb_url, bio=bio, gender=gender,
+            birthdate=birthdate, deathdate=deathdate, country=country, images=images,
+            country_code=country_code, country_timezone=country_timezone, ids=ids, **kwargs)
         self.credits = []  # type: List
         self.homepage = homepage  # type: Optional[AnyStr]
         self.social_ids = social_ids or {}  # type: Dict
@@ -1003,9 +1049,20 @@ class TVInfoBase(object):
         """
         pass
 
-    def get_show(self, show_id, load_episodes=True, banners=False, posters=False, seasons=False,
-                 seasonwides=False, fanart=False, actors=False, old_call=False, language=None, **kwargs):
-        # type: (integer_types, bool, bool, bool, bool, bool, bool, bool, bool, AnyStr, Optional[Any]) -> Optional[TVInfoShow]
+    def get_show(
+            self,
+            show_id,  # type: integer_types
+            load_episodes=True,  # type: bool
+            banners=False,  # type: bool
+            posters=False,  # type: bool
+            seasons=False,  # type: bool
+            seasonwides=False,  # type: bool
+            fanart=False,  # type: bool
+            actors=False,  # type: bool
+            old_call=False,  # type: bool
+            language=None,  # type: AnyStr
+            **kwargs  # type: Optional[Any]
+    ):  # type: (...) -> Optional[TVInfoShow]
         """
         get data for show id
         :param show_id: id of show

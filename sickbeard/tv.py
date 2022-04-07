@@ -2857,7 +2857,7 @@ class TVShow(TVShowBase):
             sickbeard.people_queue_scheduler.action.add_cast_update(show_obj=self, show_info_cast=show_info.cast,
                                                                     scheduled_update=scheduled_update, switch=switch)
         else:
-            logger.log('Not updating Cast for Show because data is unchanged.')
+            logger.log('Not updating cast for show because data is unchanged.')
         return show_info
 
     @staticmethod
