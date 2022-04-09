@@ -534,6 +534,11 @@ class SimpleNamespace(object):
         return hash(tuple(self.__dict__))
 
 
+# list that supports weak reference
+class weakList(list):
+    __slots__ = ('__weakref__',)
+
+
 class LoadingMessage(object):
     def __init__(self):
         self.lock = threading.Lock()

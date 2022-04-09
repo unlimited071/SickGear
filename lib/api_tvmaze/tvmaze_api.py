@@ -23,8 +23,8 @@ from lib.dateutil.tz.tz import _datetime_to_timestamp
 from lib.exceptions_helper import ConnectionSkipException, ex
 from lib.pytvmaze import tvmaze
 # from .tvmaze_exceptions import *
-from lib.tvinfo_base import TVInfoBase, TVInfoImage, TVInfoImageSize, TVInfoImageType, Character, Crew, \
-    crew_type_names, Person, RoleTypes, TVInfoShow, TVInfoEpisode, TVInfoIDs, TVInfoSeason, PersonGenders, \
+from lib.tvinfo_base import TVInfoBase, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoCharacter, Crew, \
+    crew_type_names, TVInfoPerson, RoleTypes, TVInfoShow, TVInfoEpisode, TVInfoIDs, TVInfoSeason, PersonGenders, \
     TVINFO_TVMAZE, TVINFO_TVDB, TVINFO_IMDB
 
 from _23 import filter_iter
@@ -361,12 +361,12 @@ class TvMaze(TVInfoBase):
                     character_person_ids.setdefault(cur_ch.id, []).extend([p.id for p in cur_ch.person])
                 for cur_ch in show_data.cast.characters:
                     existing_character = next((c for c in ti_show.cast[RoleTypes.ActorMain] if c.id == cur_ch.id),
-                                              None)  # type: Optional[Character]
+                                              None)  # type: Optional[TVInfoCharacter]
                     person = self._convert_person(cur_ch.person)
                     if existing_character:
                         existing_person = next((p for p in existing_character.person
                                                 if person.id == p.ids.get(TVINFO_TVMAZE)),
-                                               None)  # type: Person
+                                               None)  # type: TVInfoPerson
                         if existing_person:
                             try:
                                 character_person_ids[cur_ch.id].remove(existing_person.id)
@@ -391,16 +391,16 @@ class TvMaze(TVInfoBase):
                             existing_character.person.append(person)
                     else:
                         ti_show.cast[RoleTypes.ActorMain].append(
-                            Character(image=cur_ch.image and cur_ch.image.get('original'), name=clean_data(cur_ch.name),
-                                      p_id=cur_ch.id, person=[person], plays_self=cur_ch.plays_self,
-                                      thumb_url=cur_ch.image and cur_ch.image.get('medium')
-                                      ))
+                            TVInfoCharacter(image=cur_ch.image and cur_ch.image.get('original'), name=clean_data(cur_ch.name),
+                                            p_id=cur_ch.id, person=[person], plays_self=cur_ch.plays_self,
+                                            thumb_url=cur_ch.image and cur_ch.image.get('medium')
+                                            ))
 
                 if character_person_ids:
                     for cur_ch, cur_p_ids in iteritems(character_person_ids):
                         if cur_p_ids:
                             char = next((mc for mc in ti_show.cast[RoleTypes.ActorMain] if mc.id == cur_ch),
-                                        None)  # type: Optional[Character]
+                                        None)  # type: Optional[TVInfoCharacter]
                             if char:
                                 char.person = [p for p in char.person if p.id not in cur_p_ids]
 
@@ -500,7 +500,7 @@ class TvMaze(TVInfoBase):
 
     @staticmethod
     def _convert_person(person_obj):
-        # type: (tvmaze.Person) -> Person
+        # type: (tvmaze.Person) -> TVInfoPerson
         ch = []
         for c in person_obj.castcredits or []:
             show = TVInfoShow()
@@ -517,7 +517,7 @@ class TvMaze(TVInfoBase):
             show.network_timezone = clean_data(net.timezone)
             show.network_country_code = clean_data(net.code)
             show.network_is_stream = None is not c.show.web_channel
-            ch.append(Character(name=clean_data(c.character.name), show=show))
+            ch.append(TVInfoCharacter(name=clean_data(c.character.name), show=show))
         try:
             birthdate = person_obj.birthday and tz_p.parse(person_obj.birthday).date()
         except (BaseException, Exception):
@@ -526,20 +526,20 @@ class TvMaze(TVInfoBase):
             deathdate = person_obj.death_day and tz_p.parse(person_obj.death_day).date()
         except (BaseException, Exception):
             deathdate = None
-        return Person(p_id=person_obj.id, name=clean_data(person_obj.name),
-                      image=person_obj.image and person_obj.image.get('original'),
-                      gender=PersonGenders.named.get(person_obj.gender and person_obj.gender.lower(),
+        return TVInfoPerson(p_id=person_obj.id, name=clean_data(person_obj.name),
+                            image=person_obj.image and person_obj.image.get('original'),
+                            gender=PersonGenders.named.get(person_obj.gender and person_obj.gender.lower(),
                                                      PersonGenders.unknown),
-                      birthdate=birthdate, deathdate=deathdate,
-                      country=person_obj.country and clean_data(person_obj.country.get('name')),
-                      country_code=person_obj.country and clean_data(person_obj.country.get('code')),
-                      country_timezone=person_obj.country and clean_data(person_obj.country.get('timezone')),
-                      thumb_url=person_obj.image and person_obj.image.get('medium'),
-                      url=person_obj.url, ids={TVINFO_TVMAZE: person_obj.id}, characters=ch
-                      )
+                            birthdate=birthdate, deathdate=deathdate,
+                            country=person_obj.country and clean_data(person_obj.country.get('name')),
+                            country_code=person_obj.country and clean_data(person_obj.country.get('code')),
+                            country_timezone=person_obj.country and clean_data(person_obj.country.get('timezone')),
+                            thumb_url=person_obj.image and person_obj.image.get('medium'),
+                            url=person_obj.url, ids={TVINFO_TVMAZE: person_obj.id}, characters=ch
+                            )
 
     def _search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         urls, result, ids = [], [], ids or {}
         for tv_src in self.supported_person_id_searches:
             if tv_src in ids:
@@ -566,7 +566,7 @@ class TvMaze(TVInfoBase):
         return result
 
     def get_person(self, p_id, get_show_credits=False, get_images=False, **kwargs):
-        # type: (integer_types, bool, bool, Any) -> Optional[Person]
+        # type: (integer_types, bool, bool, Any) -> Optional[TVInfoPerson]
         if not p_id:
             return
         kw = {}

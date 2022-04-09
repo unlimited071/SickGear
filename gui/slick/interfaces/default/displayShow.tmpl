@@ -340,7 +340,8 @@
 #set $has_overview = '' != $show_obj.overview
 #set $ep_tally = ('', '(<span class="hint">%s episodes</span>)' % $ep_counts['eps_all'])[0 < $ep_counts['eps_all']]
 					<div class="#echo ('no', 'details')[$has_overview]#-plot">
-#if $show_obj.cast_list
+#set $cast_list = $show_obj.cast_list
+#if $cast_list
 <%
 def param(visible=True, rid=None, cache_person=None, cache_char=None, person=None, role=None, tvid_prodid=None, thumb=None, oid=None, pid=None):
     """
@@ -358,7 +359,7 @@ def param(visible=True, rid=None, cache_person=None, cache_char=None, person=Non
     return 'param not implemented properly'
 %>
     #set $cast = {'1st': [], '2nd': []}
-    #for $cur_cast in $show_obj.cast_list
+    #for $cur_cast in $cast_list
         #set $cast[('1st', '2nd')[not $cur_cast.name]] += [$cur_cast]
     #end for
 						<div class="contain-glide">

@@ -11,16 +11,18 @@ import datetime
 import json
 import logging
 
-from six import iteritems
-from sg_helpers import clean_data, get_url, iterate_chunk, try_int
-from _23 import filter_list
 from lib import tmdbsimple
 from lib.dateutil.parser import parser
 from lib.exceptions_helper import ConnectionSkipException, ex
-from lib.tvinfo_base import Character, Person, PersonGenders, \
-    TVInfoBase, TVInfoIDs, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoNetwork, TVInfoShow, TVInfoSocialIDs, \
-    TVINFO_IMDB, TVINFO_TMDB, TVINFO_TVDB, TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER, \
-    TVInfoSeason, TVInfoEpisode, RoleTypes, CastList
+from lib.tvinfo_base import CastList, PersonGenders, RoleTypes, \
+    TVInfoBase, TVInfoIDs, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoNetwork, TVInfoSocialIDs, \
+    TVInfoCharacter, TVInfoPerson, TVInfoShow, TVInfoEpisode, TVInfoSeason, \
+    TVINFO_IMDB, TVINFO_TMDB, TVINFO_TVDB, \
+    TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER
+from sg_helpers import clean_data, get_url, iterate_chunk, try_int
+
+from _23 import filter_list
+from six import iteritems
 
 # noinspection PyUnreachableCode
 if False:
@@ -273,7 +275,7 @@ class TmdbIndexer(TVInfoBase):
             show.overview = clean_data(character.get('overview'))
             show.firstaired = clean_data(character.get('first_air_date'))
             characters.append(
-                Character(name=clean_data(character.get('character')), show=show)
+                TVInfoCharacter(name=clean_data(character.get('character')), show=show)
             )
 
         pi = person_obj.get('images')
@@ -312,17 +314,17 @@ class TmdbIndexer(TVInfoBase):
         person_ids = {TVINFO_TMDB: person_obj.get('id')}
         if person_imdb_id:
             person_ids.update({TVINFO_IMDB: person_imdb_id})
-        return Person(
-            p_id=person_obj.get('id'), gender=gender, name=clean_data(person_obj.get('name')), birthdate=birthdate,
-            deathdate=deathdate, bio=clean_data(person_obj.get('biography')),
-            birthplace=clean_data(person_obj.get('place_of_birth')),
-            homepage=person_obj.get('homepage'), characters=characters, image=main_image,
-            thumb_url=main_thumb, images=image_list, akas=clean_data(set(person_obj.get('also_known_as') or [])),
-            ids=person_ids
+        return TVInfoPerson(
+            p_id=person_obj.get('id'), ids=person_ids, characters=characters,
+            name=clean_data(person_obj.get('name')), akas=clean_data(set(person_obj.get('also_known_as') or [])),
+            bio=clean_data(person_obj.get('biography')), gender=gender,
+            image=main_image, images=image_list, thumb_url=main_thumb,
+            birthdate=birthdate, birthplace=clean_data(person_obj.get('place_of_birth')),
+            deathdate=deathdate, homepage=person_obj.get('homepage')
         )
 
     def _search_person(self, name=None, ids=None):
-        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[Person]
+        # type: (AnyStr, Dict[integer_types, integer_types]) -> List[TVInfoPerson]
         """
         search for person by name
         :param name: name to search for
@@ -380,7 +382,7 @@ class TmdbIndexer(TVInfoBase):
         return results
 
     def get_person(self, p_id, get_show_credits=False, get_images=False, **kwargs):
-        # type: (integer_types, bool, bool, Any) -> Optional[Person]
+        # type: (integer_types, bool, bool, Any) -> Optional[TVInfoPerson]
         kw = {}
         to_append = []
         if get_show_credits:
@@ -687,10 +689,10 @@ class TmdbIndexer(TVInfoBase):
                     for character in sorted(filter_list(lambda b: b['credit_id'] in main_cast_credit_ids,
                                                         person_obj.get('roles', []) or []),
                                             key=lambda c: c['episode_count'], reverse=True):
-                        character_obj = Character(
+                        character_obj = TVInfoCharacter(
                             name=clean_data(character['character']),
                             person=[
-                                Person(
+                                TVInfoPerson(
                                     p_id=person_obj['id'], name=clean_data(person_obj['name']),
                                     image='%s%s%s' % (
                                         self.img_base_url,
