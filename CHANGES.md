@@ -15,6 +15,11 @@
 * Change only add IMDb person id when available to Tmdb Person
 
 
+### 0.25.32 (2022-05-15 23:00:00 UTC)
+
+* Remove provider Baconbits
+
+
 ### 0.25.31 (2022-03-28 15:10:00 UTC)
 
 * Change allow Python 3.10.4, 3.9.12, 3.8.13, and 3.7.13
