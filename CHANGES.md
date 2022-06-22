@@ -15,6 +15,11 @@
 * Change only add IMDb person id when available to Tmdb Person
 
 
+### 0.25.36 (2022-06-22 14:45:00 UTC)
+ 
+* Fix if config file doesn't exist and git is installed try to find current hash or set dummy
+
+
 ### 0.25.35 (2022-06-08 00:28:00 UTC)
 
 * Fix catch ShowDirNotFoundException during prostprocessing
