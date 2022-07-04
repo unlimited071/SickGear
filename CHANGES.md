@@ -1,5 +1,6 @@
 ﻿### 0.26.xx (202x-xx-xx xx:xx:00 UTC)
 
+* Update Tornado_py3 Web Server 6.1.0 (2047e7a) to 6.2.0 (a4f08a3)
 * Add support for scene episode number to multiple episodes
 * Add TMDB TV info source
 * Change return unknown.png flag if a requested flag image file doesn't exist
