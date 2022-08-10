@@ -61,7 +61,7 @@ from lib import imdbpie, subliminal
 from lib.dateutil import tz
 from lib.dateutil.parser import parser as du_parser
 from lib.fuzzywuzzy import fuzz
-from lib.tvinfo_base import TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_SLUG, TVINFO_TWITTER, TVINFO_WIKIPEDIA
+from lib.tvinfo_base import RoleTypes, TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_SLUG, TVINFO_TWITTER, TVINFO_WIKIPEDIA
 from lib.tvinfo_base.exceptions import *
 from sg_helpers import calc_age, int_to_time, remove_file_perm, time_to_int
 
@@ -2899,6 +2899,8 @@ class TVShow(TVShowBase):
         remove_char_ids = {c.id for c in cast_list or []}
         cast_ordered = weakList()
         for ct, c_l in iteritems(show_info_cast):  # type: (integer_types, List[TVINFO_Character])
+            if ct not in (RoleTypes.ActorMain, RoleTypes.Host, RoleTypes.Interviewer, RoleTypes.Presenter):
+                continue
             for c in c_l:
                 if stop_event and stop_event.is_set():
                     return

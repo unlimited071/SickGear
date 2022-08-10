@@ -817,6 +817,13 @@ class RoleTypes(object):
     ActorRecurring = 2
     ActorGuest = 3
     ActorSpecialGuest = 4
+    Host = 10
+    HostGuest = 11
+    Presenter = 12
+    PresenterGuest = 13
+    Interviewer = 14
+    InterviewerGuest = 15
+    MusicalGuest = 16
     # Crew types (int's >= crew_limit)
     CrewDirector = 50
     CrewWriter = 51
@@ -834,6 +841,7 @@ class RoleTypes(object):
     CrewDeveloper = 69
     CrewAnimation = 70
     CrewVisualEffects = 71
+    CrewShowrunner = 72
     CrewOther = 100
 
     reverse = {1: 'Main', 2: 'Recurring', 3: 'Guest', 4: 'Special Guest', 50: 'Director', 51: 'Writer', 52: 'Producer',
