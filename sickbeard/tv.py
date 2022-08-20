@@ -2750,7 +2750,8 @@ class TVShow(TVShowBase):
         existing_cast = set(hash(*([', '.join(p.name for p in c.person or [] if p.name)]))
                             for c in cast_list or [] if c.name)
         new_cast = set(hash(*([', '.join(p.name for p in c.person or [] if p.name)]))
-                       for c_t, c_l in iteritems(show_info_cast or {}) for c in c_l or [] if c.name)
+                       for c_t, c_l in iteritems(show_info_cast or {}) for c in c_l or [] if c.name
+                       and c_t in (RoleTypes.ActorMain, RoleTypes.Host, RoleTypes.Interviewer, RoleTypes.Presenter))
         now = datetime.date.today().toordinal()
         max_age = random.randint(30, 60)
         no_image_cast = any(not (c.image_url or c.thumb_url) and (random.randint(4, 14) < now - c.updated)
@@ -3011,7 +3012,8 @@ class TVShow(TVShowBase):
         if remove_char_ids:
             [c.remove_all_img(include_person=True) for c in cast_list or [] if c.id in remove_char_ids]
         self.cast_list = cast_ordered
-        self._save_cast_list(force=force, removed_char_ids=remove_char_ids, stop_event=stop_event, cast_list=cast_list)
+        self._save_cast_list(force=force, removed_char_ids=remove_char_ids, stop_event=stop_event,
+                             cast_list=cast_ordered)
 
     def load_imdb_info(self):
 
