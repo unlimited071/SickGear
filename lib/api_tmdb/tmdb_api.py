@@ -433,9 +433,9 @@ class TmdbIndexer(TVInfoBase):
             for g in show_dict.get('genre_ids') or []:
                 if g in self.tv_genres:
                     tv_s.genre_list.append(self.tv_genres.get(g))
-            show_obj.genre = ', '.join(show_obj.genre_list)
+            tv_s.genre = ', '.join(tv_s.genre_list)
             runtime = None
-            for r in sorted(show_dict.get('episode_run_time'), reverse=True):
+            for r in sorted(show_dict.get('episode_run_time') or [], reverse=True):
                 if 40 < r < 50:
                     runtime = r
                     break
@@ -449,13 +449,13 @@ class TmdbIndexer(TVInfoBase):
             tv_s.networks = [
                 TVInfoNetwork(name=clean_data(n.get('name')), n_id=n.get('id'),
                               country_code=clean_data(n.get('origin_country')))
-                for n in show_dict.get('networks') or []
+                for n in reversed(show_dict.get('networks') or [])
             ]
 
             if show_dict.get('networks'):
-                show_obj.network = clean_data(show_dict['networks'][0]['name'])
-                show_obj.network_id = show_dict['networks'][0].get('id')
-                show_obj.network_country_code = clean_data(show_dict['networks'][0].get('origin_country'))
+                tv_s.network = clean_data(show_dict['networks'][-1]['name'])
+                tv_s.network_id = show_dict['networks'][-1].get('id')
+                tv_s.network_country_code = clean_data(show_dict['networks'][-1].get('origin_country'))
 
             image_url = show_dict.get('poster_path') and '%s%s%s' % \
                 (self.img_base_url, self.size_map[TVInfoImageType.poster][TVInfoImageSize.original],
@@ -466,15 +466,14 @@ class TmdbIndexer(TVInfoBase):
             backdrop_url = show_dict.get('backdrop_path') and '%s%s%s' % \
                 (self.img_base_url, self.size_map[TVInfoImageType.fanart][TVInfoImageSize.original],
                  show_dict.get('backdrop_path'))
-            show_obj.ids = TVInfoIDs(tvdb=show_dict.get('external_ids', {}).get('tvdb_id'),
-                                     tmdb=show_dict['id'],
-                                     rage=show_dict.get('external_ids', {}).get('tvrage_id'),
-                                     imdb=show_dict.get('external_ids', {}).get('imdb_id')
-                                          and try_int(show_dict.get('external_ids', {}).get('imdb_id', ''
-                                                                                            ).replace('tt', ''), None))
-            show_obj.social_ids = TVInfoSocialIDs(twitter=show_dict.get('external_ids', {}).get('twitter_id'),
-                                                  instagram=show_dict.get('external_ids', {}).get('instagram_id'),
-                                                  facebook=show_dict.get('external_ids', {}).get('facebook_id'))
+            tv_s.ids = TVInfoIDs(tvdb=show_dict.get('external_ids', {}).get('tvdb_id'),
+                                 tmdb=show_dict['id'],
+                                 rage=show_dict.get('external_ids', {}).get('tvrage_id'),
+                                 imdb=show_dict.get('external_ids', {}).get('imdb_id') and
+                                 try_int(show_dict.get('external_ids', {}).get('imdb_id', '').replace('tt', ''), None))
+            tv_s.social_ids = TVInfoSocialIDs(twitter=show_dict.get('external_ids', {}).get('twitter_id'),
+                                              instagram=show_dict.get('external_ids', {}).get('instagram_id'),
+                                              facebook=show_dict.get('external_ids', {}).get('facebook_id'))
 
             tv_s.poster = image_url
             tv_s.poster_thumb = thumb_image_url

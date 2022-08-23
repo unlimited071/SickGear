@@ -14,6 +14,8 @@
 [develop changelog]
 
 * Change only add IMDb person id when available to Tmdb Person
+* Fix order for networks in tmdb_api
+* Fix _should_cast_update and load_from_tvinfo
 
 
 ### 0.25.37 (2022-06-23 13:40:00 UTC)
