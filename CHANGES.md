@@ -18,6 +18,16 @@
 * Fix _should_cast_update and load_from_tvinfo
 
 
+### 0.25.38 (2022-08-23 16:10:00 UTC)
+
+* Change allow Python 3.10.6
+* Change update fallback zoneinfo to 2022c
+* Change handle invalid date strings in search results
+* Change don't load entire file at once when calling download_file
+* Change don't request cache images for CachedImages class
+* Fix role(), if character_name is empty use 'unknown name'
+
+
 ### 0.25.37 (2022-06-23 13:40:00 UTC)
 
 * Change try to auto add repo path to git `safe.directory` setting
