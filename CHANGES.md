@@ -18,6 +18,11 @@
 * Fix _should_cast_update and load_from_tvinfo
 
 
+### 0.25.39 (2022-08-25 08:50:00 UTC)
+
+* Fix recommended.txt for package updates
+
+
 ### 0.25.38 (2022-08-23 16:10:00 UTC)
 
 * Change allow Python 3.10.6
