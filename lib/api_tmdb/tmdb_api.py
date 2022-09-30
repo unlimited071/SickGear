@@ -433,7 +433,7 @@ class TmdbIndexer(TVInfoBase):
             for g in show_dict.get('genre_ids') or []:
                 if g in self.tv_genres:
                     tv_s.genre_list.append(self.tv_genres.get(g))
-            tv_s.genre = ', '.join(tv_s.genre_list)
+            tv_s.genre = '|'.join(tv_s.genre_list)
             runtime = None
             for r in sorted(show_dict.get('episode_run_time') or [], reverse=True):
                 if 40 < r < 50:
