@@ -18,6 +18,13 @@
 * Fix _should_cast_update and load_from_tvinfo
 
 
+### 0.25.43 (2022-10-05 11:30:00 UTC)
+
+* Change python-Levenshtein to Levenshtein for py3.7-py3.11
+* Change allow regex for py3.11
+* Change make genre list output consistent on search results
+
+
 ### 0.25.42 (2022-09-30 14:40:00 UTC)
 
 * Change update dateutil zoneinfo fallback to 2022d
