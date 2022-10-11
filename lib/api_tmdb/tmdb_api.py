@@ -199,6 +199,7 @@ class TmdbIndexer(TVInfoBase):
                           imdb=s.get('external_ids') and s['external_ids'].get('imdb_id') and
                           try_int(s['external_ids'].get('imdb_id', '').replace('tt', ''), None)), \
                 clean_data(s.get('original_language')), s.get('popularity'), s.get('vote_average')
+            tvs.genre = '|'.join(tvs.genre_list or [])
             return tvs
 
         results = []
