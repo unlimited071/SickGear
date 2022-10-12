@@ -18,6 +18,12 @@
 * Fix _should_cast_update and load_from_tvinfo
 
 
+### 0.25.46 (2022-10-12 17:10:00 UTC)
+
+* Change allow Python 3.10.8, 3.9.15, 3.8.15, and 3.7.15
+* Change update dateutil zoneinfo fallback to 2022d
+
+
 ### 0.25.45 (2022-10-11 16:20:00 UTC)
 
 * Fix timeout on "Add from TV info source" 
