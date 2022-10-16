@@ -11,10 +11,19 @@
 $(document).ready(function() {
 
 	// handle the show selection dropbox
-	$('#pickShow').change(function() {
+	var select$ = $('#pickShow');
+	select$.change(function() {
 		var val = $(this).val();
-		if (val != 0)
+		if (0 !== val)
 			window.location.href = $.SickGear.Root + '/home/view-show?tvid_prodid=' + val;
+	});
+	select$.select2({
+		templateResult: function(data){
+			if (!data.element || !$(data.element).hasClass('ended')) {
+				return data.text;
+			}
+			return $('<span class="ended">[ ! ] <i>' + data.text + '</i></span>');
+		}
 	});
 
 	$('#prevShow, #nextShow').on('click', function() {

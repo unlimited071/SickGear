@@ -9,6 +9,7 @@
 * Change filter non main appearance of main cast persons
 * Add direct match to relative sort as first priority of search results
 * Change improve memory management
+* Add select2 control to view-show/Change show
 
 
 [develop changelog]
