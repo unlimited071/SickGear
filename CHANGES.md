@@ -17,6 +17,7 @@
 * Change only add IMDb person id when available to Tmdb Person
 * Fix order for networks in tmdb_api
 * Fix _should_cast_update and load_from_tvinfo
+* Change improve clarity of ended shows on view-show select2 dropdown for all view modes
 
 
 ### 0.25.46 (2022-10-15 01:05:00 UTC)
