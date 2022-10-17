@@ -22,7 +22,7 @@ $(document).ready(function() {
 			if (!data.element || !$(data.element).hasClass('ended')) {
 				return data.text;
 			}
-			return $('<span class="ended">[ ! ] <i>' + data.text + '</i></span>');
+			return $('<span class="ended"><span class="label" title="">ended</span> <i>' + data.text + '</i></span>');
 		}
 	});
 
