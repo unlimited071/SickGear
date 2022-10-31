@@ -190,6 +190,10 @@ class WebServer(threading.Thread):
             (r'%s/kodi/((?:(?![|]verifypeer=false).)*)' % self.options['web_root'], webserve.RepoHandler,
              {'path': os.path.join(sickbeard.CACHE_DIR, 'clients', 'kodi'),
               'default_filename': 'index.html'}),
+
+            (r'%s/kodi-legacy/((?:(?![|]verifypeer=false).)*)' % self.options['web_root'], webserve.RepoHandler,
+             {'path': os.path.join(sickbeard.CACHE_DIR, 'clients', 'kodi'),
+              'default_filename': 'index.html', 'legacy': True}),
         ])
 
         # Main Handler
@@ -199,6 +203,8 @@ class WebServer(threading.Thread):
             (r'%s/imagecache(/?.*)' % self.options['web_root'], webserve.CachedImages),
             (r'%s/cache(/?.*)' % self.options['web_root'], webserve.Cache),
             (r'%s(/?update-watched-state-kodi/?)' % self.options['web_root'], webserve.NoXSRFHandler),
+            (r'%s(/?update-watched-state-kodi-legacy/?)' % self.options['web_root'], webserve.NoXSRFHandler,
+             {'legacy': True}),
             (r'%s/add-shows(/?.*)' % self.options['web_root'], webserve.AddShows),
             (r'%s/home/process-media(/?.*)' % self.options['web_root'], webserve.HomeProcessMedia),
             (r'%s/config/general(/?.*)' % self.options['web_root'], webserve.ConfigGeneral),

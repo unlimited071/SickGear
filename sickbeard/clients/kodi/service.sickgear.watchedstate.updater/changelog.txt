@@ -1,3 +1,6 @@
+[B]1.0.9[/B] (2022-10-30)
+- Migrate to Kodi (Matrix) for compatibility
+- This is likely the final release for Kodi (Leia) and older (by using SickGear url /kodi-legacy)
 [B]1.0.8[/B] (2020-12-08)
 - Auto-negotiate http/s when connecting
 [B]1.0.7[/B] (2020-01-21)

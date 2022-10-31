@@ -45,7 +45,7 @@ import exceptions_helper
 # noinspection PyPep8Naming
 import encodingKludge as ek
 import sg_helpers
-from sg_helpers import scantree
+from sg_helpers import remove_file, scantree
 
 import sickbeard
 from . import classes, clients, config, db, helpers, history, image_cache, logger, name_cache, naming, \
@@ -454,6 +454,10 @@ class CalendarHandler(BaseHandler):
 
 
 class RepoHandler(BaseStaticFileHandler):
+    kodi_include = None
+    kodi_exclude = None
+    kodi_legacy = None
+    kodi_is_legacy = None
 
     def parse_url_path(self, url_path):
         logger.log('Kodi req... get(path): %s' % url_path, logger.DEBUG)
@@ -464,19 +468,30 @@ class RepoHandler(BaseStaticFileHandler):
         self.set_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
 
     def initialize(self, *args, **kwargs):
+        self.kodi_legacy = '-helix-leia'
+        self.kodi_exclude = '' if kwargs.get('legacy') else self.kodi_legacy
+        self.kodi_include = '' if not kwargs.pop('legacy', None) else self.kodi_legacy
+        self.kodi_is_legacy = bool(self.kodi_include)
+
         super(RepoHandler, self).initialize(*args, **kwargs)
 
         logger.log('Kodi req... initialize(path): %s' % kwargs['path'], logger.DEBUG)
         cache_client = ek.ek(os.path.join, sickbeard.CACHE_DIR, 'clients')
         cache_client_kodi = ek.ek(os.path.join, cache_client, 'kodi')
         cache_client_kodi_watchedstate = ek.ek(os.path.join, cache_client_kodi, 'service.sickgear.watchedstate.updater')
+
+        cache_resources = ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources')
+        cache_lang = ek.ek(os.path.join, cache_resources, 'language')
+        cache_other_lang = ek.ek(os.path.join, cache_lang, ('English', 'resource.language.en_gb')[self.kodi_is_legacy])
+        ek.ek(os.path.exists, cache_other_lang) and remove_file(cache_other_lang, tree=True)
+
+        cache_lang_sub = ek.ek(os.path.join, cache_lang, ('resource.language.en_gb', 'English')[self.kodi_is_legacy])
         for folder in (cache_client,
                        cache_client_kodi,
                        ek.ek(os.path.join, cache_client_kodi, 'repository.sickgear'),
                        cache_client_kodi_watchedstate,
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources'),
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'language'),
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'language', 'English'),
+                       ek.ek(os.path.join, cache_resources),
+                       cache_lang, cache_lang_sub,
                        ):
             if not ek.ek(os.path.exists, folder):
                 ek.ek(os.mkdir, folder)
@@ -487,15 +502,11 @@ class RepoHandler(BaseStaticFileHandler):
             fh.write(self.render_kodi_repository_sickgear_index())
         with io.open(ek.ek(os.path.join, cache_client_kodi_watchedstate, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_index())
-        with io.open(ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_resources, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_index())
-        with io.open(ek.ek(
-                os.path.join,
-                cache_client_kodi_watchedstate, 'resources', 'language', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_lang, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_language_index())
-        with io.open(ek.ek(
-                os.path.join,
-                cache_client_kodi_watchedstate, 'resources', 'language', 'English', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_lang_sub, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_language_english_index())
 
         '''
@@ -543,35 +554,48 @@ class RepoHandler(BaseStaticFileHandler):
             save_zip(aid, ver, cache_client_kodi_watchedstate,
                      self.kodi_service_sickgear_watchedstate_updater_zip)
 
+        wsu_path = 'service.sickgear.watchedstate.updater'
         for (src, dst) in (
                 (('repository.sickgear', 'icon.png'),
                  (cache_client_kodi, 'repository.sickgear', 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'icon.png'),
+                ((wsu_path, 'icon.png'),
                  (cache_client_kodi_watchedstate, 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'resources', 'settings.xml'),
-                 (cache_client_kodi_watchedstate, 'resources', 'settings.xml')),
-                (('service.sickgear.watchedstate.updater', 'icon.png'),
-                 (cache_client_kodi_watchedstate, 'resources', 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'resources', 'language', 'English', 'strings.xml'),
-                 (cache_client_kodi_watchedstate, 'resources', 'language', 'English', 'strings.xml')),
+                ((wsu_path, 'resources', 'settings%s.xml' % self.kodi_include),
+                 (cache_resources, 'settings%s.xml' % self.kodi_include.replace(self.kodi_legacy, ''))),
+                ((wsu_path, 'icon.png'),
+                 (cache_resources, 'icon.png')),
+                (((wsu_path, 'resources', 'language', 'resource.language.en_gb', 'strings.po'),
+                  (cache_lang_sub, 'strings.po')),
+                 ((wsu_path, 'resources', 'language', 'English', 'strings.xml'),
+                  (cache_lang_sub, 'strings.xml')
+                  ))[self.kodi_is_legacy],
         ):
             helpers.copy_file(ek.ek(
                 os.path.join, *(sickbeard.PROG_DIR, 'sickbeard', 'clients', 'kodi') + src), ek.ek(os.path.join, *dst))
 
     def get_content_type(self):
-        if '.md5' == self.absolute_path[-4:]:
+        if '.md5' == self.absolute_path[-4:] or '.po' == self.absolute_path[-3:]:
             return 'text/plain'
         return super(RepoHandler, self).get_content_type()
 
-    def index(self, basepath, filelist):
+    def index(self, filelist):
         t = PageTemplate(web_handler=self, file='repo_index.tmpl')
-        t.basepath = basepath
+        t.basepath = self.request.path
+        t.kodi_is_legacy = self.kodi_is_legacy
         t.filelist = filelist
+        t.repo = '%s-%s.zip' % self.repo_sickgear_details()
+        t.addon = '%s-%s.zip' % self.addon_watchedstate_details()
+
+        try:
+            with open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'CHANGES.md')) as fh:
+                t.version = re.findall(r'###[^0-9x]+([0-9]+\.[0-9]+\.[0-9x]+)', fh.readline())[0]
+        except (BaseException, Exception):
+            t.version = ''
+
         return t.respond()
 
     def render_kodi_index(self):
-        return self.index('/kodi/',
-                          ['repository.sickgear/',
+        return self.index(['repository.sickgear/',
                            'service.sickgear.watchedstate.updater/',
                            'addons.xml',
                            'addons.xml.md5',
@@ -579,8 +603,7 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_repository_sickgear_index(self):
         aid, version = self.repo_sickgear_details()
-        return self.index('/kodi/repository.sickgear/',
-                          ['addon.xml',
+        return self.index(['addon.xml',
                            'icon.png',
                            '%s-%s.zip' % (aid, version),
                            '%s-%s.zip.md5' % (aid, version),
@@ -588,8 +611,7 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_service_sickgear_watchedstate_updater_index(self):
         aid, version = self.addon_watchedstate_details()
-        return self.index('/kodi/service.sickgear.watchedstate.updater/',
-                          ['resources/',
+        return self.index(['resources/',
                            'addon.xml',
                            'icon.png',
                            '%s-%s.zip' % (aid, version),
@@ -597,21 +619,16 @@ class RepoHandler(BaseStaticFileHandler):
                            ])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources',
-                          ['language/',
+        return self.index(['language/',
                            'settings.xml',
                            'icon.png',
                            ])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_language_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources/language',
-                          ['English/',
-                           ])
+        return self.index([('resource.language.en_gb/', 'English/')[self.kodi_is_legacy]])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_language_english_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources/language/English',
-                          ['strings.xml',
-                           ])
+         return self.index([('strings.po', 'strings.xml')[self.kodi_is_legacy]])
 
     def repo_sickgear_details(self):
         return re.findall(r'(?si)addon\sid="(repository\.[^"]+)[^>]+version="([^"]+)',
@@ -626,21 +643,31 @@ class RepoHandler(BaseStaticFileHandler):
         if int(timestamp_near(datetime.datetime.now())) < sickbeard.MEMCACHE.get(mem_key, {}).get('last_update', 0):
             return sickbeard.MEMCACHE.get(mem_key).get('data')
 
+        filename = 'addon%s.xml' % self.kodi_include
         with io.open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickbeard', 'clients',
-                           'kodi', 'service.sickgear.watchedstate.updater', 'addon.xml'), 'r', encoding='utf8') as fh:
-            xml = fh.read().strip() % dict(ADDON_VERSION=self.get_addon_version())
+                           'kodi', 'service.sickgear.watchedstate.updater', filename), 'r', encoding='utf8') as fh:
+            xml = fh.read().strip() % dict(ADDON_VERSION=self.get_addon_version(self.kodi_include))
 
         sickbeard.MEMCACHE[mem_key] = dict(last_update=30 + int(timestamp_near(datetime.datetime.now())), data=xml)
         return xml
 
     @staticmethod
-    def get_addon_version():
+    def get_addon_version(kodi_include):
+        """
+        :param kodi_include: kodi variant to use
+        :type kodi_include: AnyStr
+        :return: Version of addon
+        :rtype: AnyStr
+
+        Must use an arg here instead of `self` due to static call use case from external class
+        """
         mem_key = 'kodi_ver'
         if int(timestamp_near(datetime.datetime.now())) < sickbeard.MEMCACHE.get(mem_key, {}).get('last_update', 0):
             return sickbeard.MEMCACHE.get(mem_key).get('data')
 
+        filename = 'service%s.py' % kodi_include
         with io.open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickbeard', 'clients',
-                           'kodi', 'service.sickgear.watchedstate.updater', 'service.py'), 'r', encoding='utf8') as fh:
+                           'kodi', 'service.sickgear.watchedstate.updater', filename), 'r', encoding='utf8') as fh:
             version = re.findall(r'ADDON_VERSION\s*?=\s*?\'([^\']+)', fh.read())[0]
 
         sickbeard.MEMCACHE[mem_key] = dict(last_update=30 + int(timestamp_near(datetime.datetime.now())), data=version)
@@ -648,17 +675,20 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_repo_addon_xml(self):
         t = PageTemplate(web_handler=self, file='repo_kodi_addon.tmpl')
-        return t.respond().strip()
+
+        t.endpoint = 'kodi' + ('', '-legacy')[self.kodi_is_legacy]
+
+        return re.sub(r'#\s.*\n', '', t.respond())
 
     def render_kodi_repo_addons_xml(self):
         t = PageTemplate(web_handler=self, file='repo_kodi_addons.tmpl')
         # noinspection PyTypeChecker
         t.watchedstate_updater_addon_xml = re.sub(
-            r'(?m)^([\s]*<)', r'\t\1',
+            r'(?m)^(\s*<)', r'\t\1',
             '\n'.join(self.get_watchedstate_updater_addon_xml().split('\n')[1:]))  # skip xml header
 
         t.repo_xml = re.sub(
-            r'(?m)^([\s]*<)', r'\t\1',
+            r'(?m)^(\s*<)', r'\t\1',
             '\n'.join(self.render_kodi_repo_addon_xml().split('\n')[1:]))
 
         return t.respond()
@@ -703,17 +733,25 @@ class RepoHandler(BaseStaticFileHandler):
         else:
             helpers.remove_file_perm(devenv_dst)
 
-        for direntry in helpers.scantree(zip_path, exclude=[r'\.xcf$'], filter_kind=False):
+        for direntry in helpers.scantree(zip_path,
+                                         exclude=[r'\.xcf$',
+                                                  'addon%s.xml$' % self.kodi_exclude,
+                                                  'settings%s.xml$' % self.kodi_exclude,
+                                                  'service%s.py' % self.kodi_exclude,
+                                                  ('^strings.xml$', r'\.po$')[self.kodi_is_legacy]],
+                                         filter_kind=False):
             try:
                 infile = None
-                if 'service.sickgear.watchedstate.updater' in direntry.path and direntry.path.endswith('addon.xml'):
+                filename = 'addon%s.xml' % self.kodi_include
+                if 'service.sickgear.watchedstate.updater' in direntry.path and direntry.path.endswith(filename):
                     infile = self.get_watchedstate_updater_addon_xml()
                 if not infile:
                     with io.open(direntry.path, 'rb') as fh:
                         infile = fh.read()
 
                 with zipfile.ZipFile(bfr, 'a') as zh:
-                    zh.writestr(ek.ek(os.path.relpath, direntry.path, basepath), infile, zipfile.ZIP_DEFLATED)
+                    zh.writestr(ek.ek(os.path.relpath, direntry.path.replace(self.kodi_legacy, ''), basepath),
+                                infile, zipfile.ZIP_DEFLATED)
             except OSError as e:
                 logger.log('Unable to zip %s: %r / %s' % (direntry.path, e, ex(e)), logger.WARNING)
 
@@ -725,7 +763,7 @@ class RepoHandler(BaseStaticFileHandler):
 class NoXSRFHandler(RouteHandler):
 
     def __init__(self, *arg, **kwargs):
-
+        self.kodi_include = '' if not kwargs.pop('legacy', None) else '-helix-leia'
         super(NoXSRFHandler, self).__init__(*arg, **kwargs)
         self.lock = threading.Lock()
 
@@ -738,8 +776,7 @@ class NoXSRFHandler(RouteHandler):
 
         yield self.route_method(route, limit_route=False, xsrf_filter=False)
 
-    @staticmethod
-    def update_watched_state_kodi(payload=None, as_json=True, **kwargs):
+    def update_watched_state_kodi(self, payload=None, as_json=True, **kwargs):
         data = {}
         try:
             data = json.loads(payload)
@@ -773,7 +810,7 @@ class NoXSRFHandler(RouteHandler):
                        (mapped, mapping[0], mapping[1]))
 
         req_version = tuple([int(x) for x in kwargs.get('version', '0.0.0').split('.')])
-        this_version = RepoHandler.get_addon_version()
+        this_version = RepoHandler.get_addon_version(self.kodi_include)
         if not kwargs or (req_version < tuple([int(x) for x in this_version.split('.')])):
             logger.log('Kodi Add-on update available. To upgrade to version %s; '
                        'select "Check for updates" on menu of "SickGear Add-on repository"' % this_version)
@@ -7853,7 +7890,7 @@ class Config(MainHandler):
 
         try:
             with open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'CHANGES.md')) as fh:
-                t.version = re.findall(r'###[^0-9]+([0-9]+\.[0-9]+\.[0-9]+)', fh.readline())[0]
+                t.version = re.findall(r'###[^0-9]+([0-9]+\.[0-9]+\.[0-9x]+)', fh.readline())[0]
         except (BaseException, Exception):
             t.version = ''
 
