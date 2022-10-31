@@ -10,6 +10,7 @@
 * Add direct match to relative sort as first priority of search results
 * Change improve memory management
 * Add select2 control to view-show/Change show
+* Change migrate Kodi addon to Kodi (Matrix), (Leia) and older can use repo source url /kodi-legacy
 
 
 [develop changelog]
