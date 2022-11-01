@@ -3866,7 +3866,7 @@ class CMD_SickGearShowRateFanart(ApiCall):
 
 class CMD_SickGearShowGetFanart(ApiCall):
     _help = {"desc": "get the fanart stored for a show"
-                     " X-Fanartname response header resturns Fanart name or default for not found",
+                     " X-Fanartname response header returns Fanart name or default for not found",
              "requiredParameters": {"indexer": {"desc": "indexer of a show"},
                                     "indexerid": {"desc": "unique id of a show"},
                                     },
@@ -4219,7 +4219,7 @@ class CMD_SickGearShowSetQuality(ApiCall):
         self.prodid, args = self.check_params(args, kwargs, "indexerid", None, True, "int", [])
         # optional
         # this for whatever reason removes hdbluray not sdtv... which is just wrong.
-        # reverting to previous code.. plus we didnt use the new code everywhere.
+        # reverting to previous code.. plus we didn't use the new code everywhere.
         # self.archive, args = self.check_params(
         # args, kwargs, "archive", None, False, "list", _getQualityMap().values()[1:])
         self.initial, args = self.check_params(args, kwargs, "initial", None, False, "list", [q for q in quality_map])

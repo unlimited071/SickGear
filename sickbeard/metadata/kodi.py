@@ -228,7 +228,7 @@ class KODIMetadata(generic.GenericMetadata):
     def write_show_file(self, show_obj):
         # type: (sickbeard.tv.TVShow) -> bool
         """
-        This method overides handles _show_data as a string
+        This method overrides handles _show_data as a string
         instead of default ElementTree.
         """
         data = self._show_data(show_obj)

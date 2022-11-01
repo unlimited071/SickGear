@@ -11,6 +11,7 @@
 * Change improve memory management
 * Add select2 control to view-show/Change show
 * Change migrate Kodi addon to Kodi (Matrix), (Leia) and older can use repo source url /kodi-legacy
+* Change fix some typos
 
 
 [develop changelog]
@@ -194,7 +195,7 @@
 
 ### 0.25.22 (2021-12-14 00:30:00 UTC)
 
-* Fix recognition of unreadable media quality to type UKNOWN
+* Fix recognition of unreadable media quality to type UNKNOWN
 
 
 ### 0.25.21 (2021-12-07 00:40:00 UTC)
@@ -252,7 +253,7 @@
 
 ### 0.25.12 (2021-10-17 23:00:00 UTC)
 
-* Fix large sickbeard db's that occured from using subtitle settings
+* Fix large sickbeard db's that occurred from using subtitle settings
 * Update zoneinfo fallback to 2021d
 
 
@@ -2092,7 +2093,7 @@
 * Update chardet packages 3.0.4 (9b8c5c2) to 4.0.0 (b3d867a)
 * Update dateutil library 2.6.1 (2f3a160) to 2.7.2 (ff03c0f)
 * Update feedparser library 5.2.1 (f1dd1bb) to 5.2.1 (5646f4c) - Uses the faster cchardet if installed
-* Change Hachoir can't support PY2 so backport their PY3 to prevent a need for system dependant external binaries like mediainfo
+* Change Hachoir can't support PY2 so backport their PY3 to prevent a need for system dependent external binaries like mediainfo
 * Update html5lib 0.99999999/1.0b9 (1a28d72) to 1.1-dev (e9ef538)
 * Update IMDb 5.1 (r907) to 5.2.1dev20171113 (f640595)
 * Update jquery.form plugin 3.51.0 to 4.2.2
@@ -2169,7 +2170,7 @@
 
 ### 0.15.6 (2018-04-05 01:20:00 UTC)
 
-* Fix cf algorythm
+* Fix cf algorithm
 
 
 ### 0.15.5 (2018-04-04 21:10:00 UTC)
@@ -2302,7 +2303,7 @@
 * Add 'ids' to Show + Shows
 * Add ids to coming eps + get tvdb id from ids
 * Add 'status_str' to coming eps
-* Add 'local_datetime' to comming eps + runtime
+* Add 'local_datetime' to coming eps + runtime
 * Add X-Filename response header to getbanner, getposter
 * Add X-Fanartname response header for sg.show.getfanart
 * Change remove some non-release group stuff from newnab results
@@ -2519,7 +2520,7 @@
 * Change improve clarity of enabled providers on Config/Media Providers
 * Add option to limit WebDL propers to original release group under Config/Search/Media Search
 * Change add IPv4 config option when enabling IPv6.
-* Add autoProcessTV/onTxComplete.bat to improve Windows clients Deluge, qBittorrent, Tranmission, and uTorrent
+* Add autoProcessTV/onTxComplete.bat to improve Windows clients Deluge, qBittorrent, Transmission, and uTorrent
 * Add Blutopia torrent provider
 * Add MagnetDL torrent provider
 * Add SceneHD torrent provider
@@ -3569,7 +3570,7 @@
 * Add indication of shows with never aired episodes on Episode Overview page
 * Change to separate "Set as wanted" to prevent disaster selection on Episode Overview page
 * Remove restriction to not display snatched eps link in footer on Episode Overview page
-* Change the shows episodes count text colour to visually separete from year numbers at the end of show names
+* Change the shows episodes count text colour to visually separate from year numbers at the end of show names
 * Change to add clarity to the subtitle and other columns on the Mass Update page
 * Change to improve clarity with "Recent search" and "Limited backlog" on the Config/Search Settings page
 * Change vertical alignment of input fields to be inline with text
@@ -3745,7 +3746,7 @@
 * Add imagesLoaded plug-in to prevent layout breakage by calling isotope to update content after a page auto-refresh
 * Change Coming Episodes to "Episodes" page (API endpoint is not renamed)
 * Add coming episodes to episode view renaming to config migration code
-* Change Layout term "Calender" to "Day by Day" on Episodes page
+* Change Layout term "Calendar" to "Day by Day" on Episodes page
 * Fix saving of sort modes to config file on Episodes page
 * Add qTip episode plots to "Day by Day" on Episodes page
 * Add article sorting to networks on Episodes page
@@ -3899,7 +3900,7 @@
 * Fix changing root dirs on the mass edit page
 * Add use trash (or Recycle Bin) for selected actions on General Config/Misc/Send to trash
 * Add handling for when deleting a show and the show folder no longer exists
-* Fix Coming Episodes/Layout Calender/View Paused and tweak its UI text
+* Fix Coming Episodes/Layout Calendar/View Paused and tweak its UI text
 * Made all init scripts executable
 * Fix invalid responses when using sickbeard.searchtvdb api command
 * Fixes unicode issues during searches on newznab providers when rid mapping occur

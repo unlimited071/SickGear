@@ -151,7 +151,7 @@ class TIVOMetadata(generic.GenericMetadata):
         Returns a full show dir/.meta/episode.txt path for Tivo
         episode metadata files.
 
-        Note, that pyTivo requires the metadata filename to include the original extention.
+        Note, that pyTivo requires the metadata filename to include the original extension.
 
         ie If the episode name is foo.avi, the metadata name is foo.avi.txt
 
@@ -253,7 +253,6 @@ class TIVOMetadata(generic.GenericMetadata):
             data += "isEpisode : true\n"
 
             # Write the synopsis of the video here
-            # Micrsoft Word's smartquotes can die in a fire.
             sanitizedDescription = cur_ep_obj.description
             # Replace double curly quotes
             sanitizedDescription = sanitizedDescription.replace(u"\u201c", "\"").replace(u"\u201d", "\"")
@@ -264,7 +263,7 @@ class TIVOMetadata(generic.GenericMetadata):
             data += ("description : " + sanitizedDescription + "\n")
 
             # Usually starts with "SH" and followed by 6-8 digits.
-            # Tivo uses zap2it for thier data, so the series id is the zap2it_id.
+            # Tivo uses zap2it for their data, so the series id is the zap2it_id.
             if None is not getattr(show_info, 'zap2it_id', None):
                 data += ("seriesId : " + show_info["zap2it_id"] + "\n")
 

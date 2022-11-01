@@ -29,7 +29,7 @@ NAME=sickgear
 DESC=SickGear
 
 ## Don't edit this file
-## Edit user configuation in /etc/default/sickgear to change
+## Edit user configuration in /etc/default/sickgear to change
 ##
 ## SG_USER=         #$RUN_AS, username to run sickgear under, the default is sickgear
 ## SG_HOME=         #$APP_PATH, the location of sickgear.py, the default is /opt/sickgear

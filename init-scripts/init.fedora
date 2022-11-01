@@ -21,7 +21,7 @@ fi
 prog=sickgear
 lockfile=/var/lock/subsys/$prog
 
-## Edit user configuation in /etc/sysconfig/sickgear to change
+## Edit user configuration in /etc/sysconfig/sickgear to change
 ## the defaults
 username=${SG_USER-sickgear}
 homedir=${SG_HOME-/opt/sickgear}

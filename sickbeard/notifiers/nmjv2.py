@@ -93,7 +93,7 @@ class NMJv2Notifier(BaseNotifier):
         Sends a NMJ update command to the specified machine
 
         host: The hostname/IP to send the request to (no port)
-        database: The database to send the requst to
+        database: The database to send the request to
         mount: The mount URL to use (optional)
 
         Returns: True if the request succeeded, False otherwise

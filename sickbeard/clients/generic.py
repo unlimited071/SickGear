@@ -121,56 +121,56 @@ class GenericClient(object):
 
     def _add_torrent_uri(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is added via url (magnet or .torrent link)
         """
         return False
 
     def _add_torrent_file(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is added via result.content (only .torrent file)
         """
         return False
 
     def _set_torrent_label(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with label
         """
         return True
 
     def _set_torrent_ratio(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with ratio
         """
         return True
 
     def _set_torrent_seed_time(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with a seed time
         """
         return True
 
     def _set_torrent_priority(self, result):
         """
-        This should be overriden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with result.priority (-1 = low, 0 = normal, 1 = high)
         """
         return True
 
     def _set_torrent_path(self, torrent_path):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with path
         """
         return True
 
     def _set_torrent_pause(self, result):
         """
-        This should be overridden should return the True/False from the client
+        This should be overridden to return the True/False from the client
         when a torrent is set with pause
         """
         return True

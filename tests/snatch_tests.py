@@ -86,7 +86,7 @@ def test_generator(tvdbdid, show_name, curData, forceSearch):
         bestResult = search.search_providers(show_obj, episode.season, episode.episode, forceSearch)
         if not bestResult:
             self.assertEqual(curData['b'], bestResult)
-        self.assertEqual(curData['b'], bestResult.name) #first is expected, second is choosen one
+        self.assertEqual(curData['b'], bestResult.name) #first is expected, second is chosen one
     return test
 
 
