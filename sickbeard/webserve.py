@@ -3518,7 +3518,7 @@ class Home(MainHandler):
     @staticmethod
     def csv_items(text):
         # type: (AnyStr) -> AnyStr
-        """Return a text list of items seperated by comma instead of '/' """
+        """Return a text list of items separated by comma instead of '/' """
 
         return re.sub(r'\b\s?/\s?\b', ', ', text)
 
@@ -7474,7 +7474,7 @@ class History(MainHandler):
                 Return an image src, image class, or None based on a recognised identifier
 
                 :param _item: to search for a known domain identifier
-                :param as_class: wether a search should return an image (by default) or class
+                :param as_class: whether a search should return an image (by default) or class
                 :return: image src, image class, or None if unknown identifier
                 """
                 for identifier, result in (

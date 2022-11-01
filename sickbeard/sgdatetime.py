@@ -289,7 +289,7 @@ if PY2:
     """
     Use `timestamp_near` for a timezone aware UTC timestamp in the near future or recent past.
 
-    Under py3, using the faster variable assigned cpython callable, so py2 is set up to mimick the signature types.
+    Under py3, using the faster variable assigned cpython callable, so py2 is set up to mimic the signature types.
     Note: the py3 callable is limited to datetime.datetime and does not work with datetime.date.
     """
     def _py2timestamp(dt=None):

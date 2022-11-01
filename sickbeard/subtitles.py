@@ -109,7 +109,7 @@ def subtitle_language_filter():
 
 class SubtitlesFinder(object):
     """
-    The SubtitlesFinder will be executed every hour but will not necessarly search
+    The SubtitlesFinder will be executed every hour but will not necessarily search
     and download subtitles. Only if the defined rule is true
     """
 

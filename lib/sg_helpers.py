@@ -46,7 +46,7 @@ if False:
     from _23 import DirEntry
     from lxml_etree import etree
     try:
-        # py7z hardwired removed because Python 3.9 interpretor crashes with a process kill signal 9 when memory is
+        # py7z hardwired removed because Python 3.9 interpreter crashes with a process kill signal 9 when memory is
         # low/exhausted during a native 7z compress action on Linux. Therefore, the native functions cannot be trusted.
         # `import` moved to this non-runtime scope to preserve code resolution in case reinstated at a later PY release
         # noinspection PyUnresolvedReferences,PyPackageRequirements

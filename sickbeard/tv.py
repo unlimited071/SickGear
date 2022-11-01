@@ -297,7 +297,7 @@ class Referential(object):
     This class superimposes handling for a string based ID named `ref_id`.
 
     __init__ will pass back control untouched to the object deriving
-    from this one if an integer is passed so that integer ID can peform
+    from this one if an integer is passed so that integer ID can perform
     """
 
     def __init__(self, sid=None):
@@ -318,17 +318,17 @@ class Referential(object):
                ):  # type: (...) -> Union[tuple[Optional[AnyStr, int], Optional[AnyStr, int]], AnyStr]
         """
         return either,
-         1) a prefered external unique id for a consistent reliable `reference`, or the internal row id as fallback
+         1) a preferred external unique id for a consistent reliable `reference`, or the internal row id as fallback
          2) convert a consistent `reference` to src and src_id to use for matching to an internal row id
             uses param rid or self._rid as reference id to convert if either is not Nonetype
 
         for example,
-         1) if string is False, prefered static tuple[tvid, id], or tuple[None, id] if ids not set
-         2)          otherwise, prefered static 'tvid:id', or 'id' if ids not set
+         1) if string is False, preferred static tuple[tvid, id], or tuple[None, id] if ids not set
+         2)          otherwise, preferred static 'tvid:id', or 'id' if ids not set
          3) if string is False and self._rid contains ':', list[src, src_id]
          4)           otherwise if self._rid contains ':', list['src', 'src_id']
 
-        reason, a row id is highly volatile, but a prefered ID is more reliable.
+        reason, a row id is highly volatile, but a preferred ID is more reliable.
         use cases,
          show removed and readded, or src switched, then refreshing any character/person views will be consistent.
          can share/save a character/person link/bookmark as it will be consistent across instances.
@@ -1907,7 +1907,7 @@ class TVShow(TVShowBase):
         """
         return an identifier that represents the current state of the show cast list
 
-        used to tell if a change has occured in a cast list after time/process
+        used to tell if a change has occurred in a cast list after time/process
         """
         return set((c.name, c.image_url or '', c.thumb_url or '',
                     hash(*([', '.join(p.name for p in c.person or [] if p.name)])))
@@ -4653,7 +4653,7 @@ class TVEpisode(TVEpisodeBase):
     def delete_episode(self, return_sql=False):
         # type: (bool) -> Optional[List[List]]
         """
-        deletes epsiode from db, alternatively returns sql to remove episode from db
+        deletes episode from db, alternatively returns sql to remove episode from db
 
         :param return_sql: only return sql to delete episode
         """

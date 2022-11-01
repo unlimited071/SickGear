@@ -125,7 +125,7 @@ class DBConnection(object):
     def backup_db(self, target, backup_filename=None):
         # type: (AnyStr, AnyStr) -> Tuple[bool, AnyStr]
         """
-        backups the db ot target dir + optional filename
+        backup the db to target dir + optional filename
 
         Availability: SQLite 3.6.11 or higher
         New in version 3.7
