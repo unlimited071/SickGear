@@ -17,11 +17,6 @@
 
 from __future__ import with_statement, division
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
 # noinspection PyProtectedMember
 from mimetypes import MimeTypes
 
@@ -44,6 +39,7 @@ from exceptions_helper import ex, MultipleShowObjectsException
 import exceptions_helper
 # noinspection PyPep8Naming
 import encodingKludge as ek
+from json_helper import json_dumps, json_loads
 import sg_helpers
 from sg_helpers import remove_file, scantree
 
@@ -779,7 +775,7 @@ class NoXSRFHandler(RouteHandler):
     def update_watched_state_kodi(self, payload=None, as_json=True, **kwargs):
         data = {}
         try:
-            data = json.loads(payload)
+            data = json_loads(payload)
         except (BaseException, Exception):
             pass
 
@@ -836,10 +832,10 @@ class IsAliveHandler(BaseHandler):
         self.set_header('Access-Control-Allow-Headers', 'x-requested-with')
 
         if sickbeard.started:
-            results = decode_str(callback) + '(' + json.dumps(
+            results = decode_str(callback) + '(' + json_dumps(
                 {'msg': str(sickbeard.PID)}) + ');'
         else:
-            results = decode_str(callback) + '(' + json.dumps({'msg': 'nope'}) + ');'
+            results = decode_str(callback) + '(' + json_dumps({'msg': 'nope'}) + ');'
 
         self.write(results)
 
@@ -867,7 +863,7 @@ class LoadingWebHandler(BaseHandler):
 
     @staticmethod
     def get_message():
-        return json.dumps({'message': classes.loading_msg.message})
+        return json_dumps({'message': classes.loading_msg.message})
 
     # noinspection PyUnusedLocal
     @authenticated
@@ -1317,7 +1313,7 @@ class MainHandler(WebHandler):
                 next_event += [{k + '_timeleft': t and str(t).split('.')[0] or 'soon'}]
 
         if json_dump not in (False, 0, '0', '', None):
-            next_event = json.dumps(next_event)
+            next_event = json_dumps(next_event)
 
         return next_event
 
@@ -1372,7 +1368,7 @@ sg_apikey = '0123456789abcdef'
 sg_host = 'http://localhost:8081'
 
 url = '%s/api/%s/?cmd=sg.updatewatchedstate' % (sg_host, sg_apikey)
-payload = json.dumps(dict(
+payload = json_dumps(dict(
     key01=dict(path_file='\\media\\path\\', played=100, label='Bob', date_watched=1509850398.0),
     key02=dict(path_file='\\media\\path\\file-played1.mkv', played=100, label='Sue', date_watched=1509850398.0),
     key03=dict(path_file='\\media\\path\\file-played2.mkv', played=0, label='Rita', date_watched=1509850398.0)
@@ -1380,12 +1376,15 @@ payload = json.dumps(dict(
 # payload is POST'ed to SG
 rq = urllib2.Request(url, data=payload)
 r = urllib2.urlopen(rq)
-print json.load(r)
+print json_load(r)
 r.close()
 ```
         """
         try:
-            data = json.loads(payload)
+            if isinstance(payload, string_types):
+                data = json_loads(payload)
+            else:
+                data = payload
         except ValueError:
             payload = {}
             data = payload
@@ -1453,7 +1452,7 @@ r.close()
                 data = dict(error='Request made to SickGear with invalid payload')
                 logger.log('Update watched state failed: %s' % data['error'], logger.WARNING)
 
-            return json.dumps(data)
+            return json_dumps(data)
 
     def toggle_specials_view_show(self, tvid_prodid):
         sickbeard.DISPLAY_SHOW_SPECIALS = not sickbeard.DISPLAY_SHOW_SPECIALS
@@ -1850,7 +1849,7 @@ class Home(MainHandler):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
 
         if None is pin:
-            return json.dumps({'result': 'Fail', 'error_message': 'Trakt PIN required for authentication'})
+            return json_dumps({'result': 'Fail', 'error_message': 'Trakt PIN required for authentication'})
 
         if account and 'new' == account:
             account = None
@@ -1859,9 +1858,9 @@ class Home(MainHandler):
         if account:
             acc = helpers.try_int(account, -1)
             if 0 < acc and acc not in sickbeard.TRAKT_ACCOUNTS:
-                return json.dumps({'result': 'Fail', 'error_message': 'Fail: cannot update non-existing account'})
+                return json_dumps({'result': 'Fail', 'error_message': 'Fail: cannot update non-existing account'})
 
-        json_fail_auth = json.dumps({'result': 'Fail', 'error_message': 'Trakt NOT authenticated'})
+        json_fail_auth = json_dumps({'result': 'Fail', 'error_message': 'Trakt NOT authenticated'})
         try:
             resp = TraktAPI().trakt_token(pin, account=acc)
         except TraktAuthException:
@@ -1873,7 +1872,7 @@ class Home(MainHandler):
             sickbeard.USE_TRAKT = True
             sickbeard.save_config()
         pick = resp if not account else acc
-        return json.dumps({'result': 'Success',
+        return json_dumps({'result': 'Success',
                            'account_id': sickbeard.TRAKT_ACCOUNTS[pick].account_id,
                            'account_name': sickbeard.TRAKT_ACCOUNTS[pick].name})
 
@@ -1890,10 +1889,10 @@ class Home(MainHandler):
                     if TraktAPI.delete_account(aid):
                         trakt_collection_remove_account(aid)
                         account['num_accounts'] = len(sickbeard.TRAKT_ACCOUNTS)
-                        return json.dumps(account)
+                        return json_dumps(account)
 
-                return json.dumps({'result': 'Not found: Account to delete'})
-        return json.dumps({'result': 'Not found: Invalid account id'})
+                return json_dumps({'result': 'Not found: Account to delete'})
+        return json_dumps({'result': 'Not found: Invalid account id'})
 
     def load_show_notify_lists(self):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1923,7 +1922,7 @@ class Home(MainHandler):
             if data:
                 response.append({current_group[0]: data})
 
-        return json.dumps(response)
+        return json_dumps(response)
 
     def test_slack(self, channel=None, as_authed=False, bot_name=None, icon_url=None, access_token=None):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1950,7 +1949,7 @@ class Home(MainHandler):
 
         r = notifiers.NotifierFactory().get('TELEGRAM').test_notify(
             send_icon=bool(config.checkbox_to_value(send_icon)), access_token=access_token, chatid=chatid, quiet=quiet)
-        return json.dumps(r)
+        return json_dumps(r)
 
     def test_email(self, host=None, port=None, smtp_from=None, use_tls=None, user=None, pwd=None, to=None):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1974,7 +1973,7 @@ class Home(MainHandler):
                              ' WHERE indexer = ? AND indexer_id = ?',
                              [emails, parse[0], parse[1]]):
             success = True
-        return json.dumps({'id': show, 'success': success})
+        return json_dumps({'id': show, 'success': success})
 
     def check_update(self):
         # force a check to see if there is a new version
@@ -2086,13 +2085,13 @@ class Home(MainHandler):
         if tvid_prodid:
             show_obj = helpers.find_show_by_id(tvid_prodid)
         if not show_obj:
-            return json.dumps(response)
+            return json_dumps(response)
 
         re_season = re.compile(r'(?i)^showseason-(\d+)$')
         season = None if not any(re_season.findall(season)) else \
             helpers.try_int(re_season.findall(season)[0], None)
         if None is season:
-            return json.dumps(response)
+            return json_dumps(response)
 
         t = PageTemplate(web_handler=self, file='inc_displayShow.tmpl')
         t.show_obj = show_obj
@@ -2120,7 +2119,7 @@ class Home(MainHandler):
         t.scene_absolute_numbering = get_scene_absolute_numbering_for_show(*args)
         t.xem_absolute_numbering = get_xem_absolute_numbering_for_show(*args)
 
-        return json.dumps({'success': t.respond()})
+        return json_dumps({'success': t.respond()})
 
     def view_show(self, tvid_prodid=None):
 
@@ -2519,7 +2518,7 @@ class Home(MainHandler):
                 response[cur_show_obj.tvid_prodid].update({
                     'path': cur_show_obj.path, 'bSize': loc_size, 'hSize': helpers.human(loc_size)})
 
-        return json.dumps(response)
+        return json_dumps(response)
 
     @staticmethod
     def scene_exceptions(tvid_prodid, wanted_season=None):
@@ -2560,7 +2559,7 @@ class Home(MainHandler):
         show_obj = helpers.find_show_by_id(tvid_prodid)
         response = {}
         if not show_obj:
-            return json.dumps(response)
+            return json_dumps(response)
         new_ids = {}
         save_map = []
         with show_obj.lock:
@@ -2626,14 +2625,14 @@ class Home(MainHandler):
         response.update({
             'map': {k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)}
         })
-        return json.dumps(response)
+        return json_dumps(response)
 
     @staticmethod
     def force_mapping(tvid_prodid, **kwargs):
 
         show_obj = helpers.find_show_by_id(tvid_prodid)
         if not show_obj:
-            return json.dumps({})
+            return json_dumps({})
         save_map = []
         with show_obj.lock:
             for k, v in iteritems(kwargs):
@@ -2660,7 +2659,7 @@ class Home(MainHandler):
                 save_mapping(show_obj, save_map=save_map)
             map_indexers_to_show(show_obj, force=True)
             ui.notifications.message('Mapping Reloaded')
-        return json.dumps({k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)})
+        return json_dumps({k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)})
 
     @staticmethod
     def fanart_tmpl(t):
@@ -3096,7 +3095,7 @@ class Home(MainHandler):
             err_msg = 'You must specify a show and at least one episode'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         use_default = False
@@ -3109,7 +3108,7 @@ class Home(MainHandler):
             err_msg = 'Invalid status'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         show_obj = helpers.find_show_by_id(tvid_prodid)
@@ -3118,7 +3117,7 @@ class Home(MainHandler):
             err_msg = 'Error', 'Show not in show list'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         min_initial = min(Quality.splitQuality(show_obj.quality)[0])
@@ -3224,7 +3223,7 @@ class Home(MainHandler):
                 ui.notifications.message('Retry search started', msg)
 
         if direct:
-            return json.dumps({'result': 'success'})
+            return json_dumps({'result': 'success'})
         self.redirect('/home/view-show?tvid_prodid=%s' % tvid_prodid)
 
     def rename_media(self, tvid_prodid=None):
@@ -3351,7 +3350,7 @@ class Home(MainHandler):
             #    return self.search_q_status(
             #        '%s%s%s' % (ep_obj.show_obj.tvid, TVidProdid.glue, ep_obj.show_obj.prodid))  # page refresh
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def episode_retry(self, tvid_prodid, season, episode):
 
@@ -3419,7 +3418,9 @@ class Home(MainHandler):
                 ep_data_list.append(ep_data)
                 seen_eps.add(uniq_sxe)
 
-        return json.dumps(dict(episodes=ep_data_list))
+        if not ep_data_list:
+            return '{"episodes":[]}'
+        return json_dumps(dict(episodes=ep_data_list))
 
     @staticmethod
     def prepare_episode(ep_type, searchstate, retrystate=False, statusoverview=False):
@@ -3463,19 +3464,19 @@ class Home(MainHandler):
     def search_episode_subtitles(self, tvid_prodid=None, season=None, episode=None):
 
         if not sickbeard.USE_SUBTITLES:
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # retrieve the episode object and fail if we can't get one
         ep_obj = self._get_episode(tvid_prodid, season, episode)
         if isinstance(ep_obj, str):
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # try do download subtitles for that episode
         try:
             previous_subtitles = set([subliminal.language.Language(x) for x in ep_obj.subtitles])
             ep_obj.subtitles = set([x.language for x in next(itervalues(ep_obj.download_subtitles()))])
         except (BaseException, Exception):
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # return the correct json value
         if previous_subtitles != ep_obj.subtitles:
@@ -3486,7 +3487,7 @@ class Home(MainHandler):
         else:
             status = 'No subtitles downloaded'
         ui.notifications.message('Subtitles Search', status)
-        return json.dumps({'result': status,
+        return json_dumps({'result': status,
                            'subtitles': ','.join(sorted([x.alpha2 for x in
                                                          ep_obj.subtitles.union(previous_subtitles)]))})
 
@@ -3498,7 +3499,7 @@ class Home(MainHandler):
         result = set_scene_numbering_helper(tvid, prodid, for_season, for_episode, for_absolute, scene_season,
                                             scene_episode, scene_absolute)
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def fetch_releasegroups(show_name):
@@ -3513,7 +3514,7 @@ class Home(MainHandler):
                           groups=[dict(name='No groups fetched in API response', rating='', range='')])
         else:
             result = dict(result='success', groups=result)
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def csv_items(text):
@@ -3734,7 +3735,7 @@ class Home(MainHandler):
                 try:
                     results[cur_date_kind] = self._select_person_by_date(date_arg, cur_date_kind)
                 except (BaseException, Exception) as e:
-                    return json.dumps({'result': 'error', 'error': ex(e)})
+                    return json_dumps({'result': 'error', 'error': ex(e)})
 
         names = names and names.split('|')
         if names:
@@ -3748,7 +3749,7 @@ class Home(MainHandler):
                 self._convert_person_data(cur_person)
             results['names'] = sql_result
 
-        return json.dumps({'result': 'success', 'person_list': results})
+        return json_dumps({'result': 'success', 'person_list': results})
 
     def get_switch_changed(self):
         t = PageTemplate(web_handler=self, file='switch_show_result.tmpl')
@@ -3925,7 +3926,7 @@ class AddShows(Home):
         result.sort()
         result.insert(0, sickbeard.ADD_SHOWS_METALANG)
 
-        return json.dumps({'results': result})
+        return json_dumps({'results': result})
 
     @staticmethod
     def generate_show_dir_name(show_name):
@@ -4188,7 +4189,7 @@ class AddShows(Home):
         for n, func in enumerate(sort_results):
             final_results = func(final_results, n == len(sort_results) - 1, 'nogroup' == sickbeard.RESULTS_SORTBY[-7:])
 
-        return json.dumps({'results': final_results})
+        return json_dumps({'results': final_results})
 
     @staticmethod
     def _make_search_image_url(iid, show_info):
@@ -4533,28 +4534,28 @@ class AddShows(Home):
         if 'enable' == kwargs.get('action'):
             account_id = re.findall(r'\d{6,32}', kwargs.get('input', ''))
             if not account_id:
-                return json.dumps({'result': 'Fail: Invalid IMDb ID'})
+                return json_dumps({'result': 'Fail: Invalid IMDb ID'})
             acc_id = account_id[0]
 
             url = 'https://www.imdb.com/user/ur%s/watchlist' % acc_id + \
                   '?sort=date_added,desc&title_type=tvSeries,tvEpisode,tvMiniSeries&view=detail'
             html = helpers.get_url(url, nocache=True)
             if not html:
-                return json.dumps({'result': 'Fail: No list found with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: No list found with id: %s' % acc_id})
             if 'id="unavailable"' in html or 'list is not public' in html or 'not enabled public view' in html:
-                return json.dumps({'result': 'Fail: List is not public with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: List is not public with id: %s' % acc_id})
 
             try:
                 list_name = re.findall(r'(?i)og:title[^>]+?content[^"]+?"([^"]+?)\s+Watchlist\s*"',
                                        html)[0].replace('\'s', '')
                 accounts[acc_id] = list_name or 'noname'
             except (BaseException, Exception):
-                return json.dumps({'result': 'Fail: No list found with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: No list found with id: %s' % acc_id})
 
         else:
             acc_id = kwargs.get('select', '')
             if acc_id not in accounts:
-                return json.dumps({'result': 'Fail: Unknown IMDb ID'})
+                return json_dumps({'result': 'Fail: Unknown IMDb ID'})
 
             if 'disable' == kwargs.get('action'):
                 accounts[acc_id] = '(Off) %s' % accounts[acc_id].replace('(Off) ', '')
@@ -4576,7 +4577,7 @@ class AddShows(Home):
             sickbeard.IMDB_ACCOUNTS.insert(0, yours[0][0])
         sickbeard.save_config()
 
-        return json.dumps({'result': 'Success', 'accounts': sickbeard.IMDB_ACCOUNTS})
+        return json_dumps({'result': 'Success', 'accounts': sickbeard.IMDB_ACCOUNTS})
 
     @staticmethod
     def parse_imdb_overview(tag):
@@ -4787,7 +4788,7 @@ class AddShows(Home):
         if html:
             show_list_found = None
             try:
-                data = json.loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
+                data = json_loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
                 show_list_found = self.parse_imdb(data, filtered, kwargs)
             except (BaseException, Exception):
                 pass
@@ -4832,7 +4833,7 @@ class AddShows(Home):
         if html:
             show_list_found = None
             try:
-                data = json.loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
+                data = json_loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
                 show_list_found = self.parse_imdb(data, filtered, kwargs)
             except (BaseException, Exception):
                 pass
@@ -5100,7 +5101,7 @@ class AddShows(Home):
                 sickbeard.BROWSELIST_HIDDEN += [sid]
         if save_config:
             sickbeard.save_config()
-        return json.dumps({'success': save_config})
+        return json_dumps({'success': save_config})
 
     def info_trakt(self, ids, show_name):
 
@@ -5796,7 +5797,7 @@ class AddShows(Home):
                     showfilter=kwargs.get('showfilter', ''), showsort=kwargs.get('showsort', ''))
         if save_config:
             sickbeard.save_config()
-        return json.dumps({'success': save_config})
+        return json_dumps({'success': save_config})
 
     def browse_shows(self, browse_type, browse_title, shows, **kwargs):
         """
@@ -6272,7 +6273,7 @@ class Manage(MainHandler):
                                                    'change')[None is d_status or not undo_from_history], change_to)])),
                         status]
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def recommend_status(cur_status, location=None, d_qual=None, cur_quality=None):
@@ -6476,7 +6477,7 @@ class Manage(MainHandler):
                 subliminal.language.Language(subtitle, strict=False).alpha2
                 for subtitle in cur_result['subtitles'].split(',')]) if '' != cur_result['subtitles'] else ''
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def subtitle_missed(self, which_subs=None):
 
@@ -7010,7 +7011,7 @@ class Manage(MainHandler):
         :param to_switch:
         """
         if not to_switch:
-            return json.dumps({'error': 'No list given'})
+            return json_dumps({'error': 'No list given'})
 
         shows = to_switch.split('|')
         sl, tv_sources, errors = [], sickbeard.TVInfoAPI().search_sources, []
@@ -7062,7 +7063,7 @@ class Manage(MainHandler):
                 logger.log('Could not add show %s to switch queue: %s' % (show_obj.tvid_prodid, ex(e)), logger.WARNING)
                 errors.append('Could not add show %s to switch queue: %s' % (show_obj.tvid_prodid, ex(e)))
 
-        return json.dumps(({'result': 'success'}, {'errors': ', '.join(errors)})[0 < len(errors)])
+        return json_dumps(({'result': 'success'}, {'errors': ', '.join(errors)})[0 < len(errors)])
 
 
 class ManageSearch(Manage):
@@ -7087,18 +7088,18 @@ class ManageSearch(Manage):
     @staticmethod
     def remove_from_search_queue(to_remove=None):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.search_queue_scheduler.action.remove_from_queue(to_remove=to_remove)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_search_queue(search_type=None):
         search_type = helpers.try_int(search_type, None)
         if not search_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         sickbeard.search_queue_scheduler.action.clear_queue(action_types=search_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def retry_provider(provider=None):
@@ -7208,25 +7209,25 @@ class ShowTasks(Manage):
     @staticmethod
     def remove_from_show_queue(to_remove=None, force=False):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         force = force in (1, '1', 'true', 'True', True)
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.show_queue_scheduler.action.remove_from_queue(to_remove=to_remove, force=force)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def remove_from_people_queue(to_remove=None):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.people_queue_scheduler.action.remove_from_queue(to_remove=to_remove)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_show_queue(show_type=None):
         show_type = helpers.try_int(show_type, None)
         if not show_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         if show_type in [sickbeard.show_queue.ShowQueueActions.UPDATE,
                          sickbeard.show_queue.ShowQueueActions.FORCEUPDATE,
                          sickbeard.show_queue.ShowQueueActions.WEBFORCEUPDATE]:
@@ -7234,15 +7235,15 @@ class ShowTasks(Manage):
                          sickbeard.show_queue.ShowQueueActions.FORCEUPDATE,
                          sickbeard.show_queue.ShowQueueActions.WEBFORCEUPDATE]
         sickbeard.show_queue_scheduler.action.clear_queue(action_types=show_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_people_queue(people_type=None):
         people_type = helpers.try_int(people_type, None)
         if not people_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         sickbeard.people_queue_scheduler.action.clear_queue(action_types=people_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     def force_show_update(self):
 
@@ -7268,7 +7269,7 @@ class ShowTasks(Manage):
                     change = 1
                 show_obj.not_found_count *= change
 
-        return json.dumps({})
+        return json_dumps({})
 
 
 class History(MainHandler):
@@ -7539,7 +7540,7 @@ class History(MainHandler):
                 try:
                     requests.head('%s://%s' % (proto, down_url), timeout=5)
                 except (BaseException, Exception):
-                    return json.dumps(result)
+                    return json_dumps(result)
 
             resp = helpers.get_url('%s://%s/check.php?domain=%s' % (proto, down_url, site_url))
             if resp:
@@ -7563,7 +7564,7 @@ class History(MainHandler):
 
                 result = {('last_down', 'down_for')['up' not in check and 'down for' in check]: period}
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def clear_history(self):
 
@@ -7866,7 +7867,7 @@ class History(MainHandler):
 
         ui.notifications.message('History : Watch', msg)
 
-        return json.dumps(dict(success=h_records))
+        return json_dumps(dict(success=h_records))
 
 
 class Config(MainHandler):
@@ -7938,7 +7939,7 @@ class ConfigGeneral(Config):
 
         changed_exceptions, cnt_updated_numbers, min_remain_iv = scene_exceptions.retrieve_exceptions()
 
-        return json.dumps(dict(names=int(changed_exceptions), numbers=cnt_updated_numbers, min_remain_iv=min_remain_iv))
+        return json_dumps(dict(names=int(changed_exceptions), numbers=cnt_updated_numbers, min_remain_iv=min_remain_iv))
 
     @staticmethod
     def export_alt(tvid_prodid=None):
@@ -8001,8 +8002,8 @@ class ConfigGeneral(Config):
                 for fe_te in ft_list:
                     alts[f_s]['se'] += [dict({fe_te[0]: '%sx%s' % (t_s, '-'.join(['%s' % x for x in fe_te[1:]]))})]
 
-            ui_output = json.dumps(dict({tvid_prodid: alts}), indent=2, separators=(',', ': '))
-        return json.dumps(dict(text='%s\n\n' % ui_output))
+            ui_output = json_dumps(dict({tvid_prodid: alts}), indent=2, separators=(',', ': '))
+        return json_dumps(dict(text='%s\n\n' % ui_output))
 
     @staticmethod
     def generate_key():
@@ -8106,7 +8107,7 @@ class ConfigGeneral(Config):
                 sickbeard.save_config()
                 ui.notifications.message('Configuration Saved', ek.ek(os.path.join, sickbeard.CONFIG_FILE))
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def revoke_apikey(app_name, api_key):
@@ -8124,7 +8125,7 @@ class ConfigGeneral(Config):
             sickbeard.save_config()
             ui.notifications.message('Configuration Saved', ek.ek(os.path.join, sickbeard.CONFIG_FILE))
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def save_general(self, launch_browser=None, update_shows_on_start=None, show_update_hour=None,
                      trash_remove_show=None, trash_rotate_logs=None,
@@ -8291,23 +8292,23 @@ class ConfigGeneral(Config):
     @staticmethod
     def fetch_pullrequests():
         if 'master' == sickbeard.BRANCH:
-            return json.dumps({'result': 'success', 'pulls': []})
+            return json_dumps({'result': 'success', 'pulls': []})
         else:
             try:
                 pulls = sickbeard.update_software_scheduler.action.list_remote_pulls()
-                return json.dumps({'result': 'success', 'pulls': pulls})
+                return json_dumps({'result': 'success', 'pulls': pulls})
             except (BaseException, Exception) as e:
                 logger.log(u'exception msg: ' + ex(e), logger.DEBUG)
-                return json.dumps({'result': 'fail'})
+                return json_dumps({'result': 'fail'})
 
     @staticmethod
     def fetch_branches():
         try:
             branches = sickbeard.update_software_scheduler.action.list_remote_branches()
-            return json.dumps({'result': 'success', 'branches': branches, 'current': sickbeard.BRANCH or 'master'})
+            return json_dumps({'result': 'success', 'branches': branches, 'current': sickbeard.BRANCH or 'master'})
         except (BaseException, Exception) as e:
             logger.log(u'exception msg: ' + ex(e), logger.DEBUG)
-            return json.dumps({'result': 'fail'})
+            return json_dumps({'result': 'fail'})
 
 
 class ConfigSearch(Config):
@@ -8659,7 +8660,7 @@ class ConfigProviders(Config):
     @staticmethod
     def can_add_newznab_provider(name, url):
         if not name or not url:
-            return json.dumps({'error': 'No Provider Name or url specified'})
+            return json_dumps({'error': 'No Provider Name or url specified'})
 
         provider_dict = dict(zip([sickbeard.providers.generic_provider_name(x.get_id())
                                  for x in sickbeard.newznabProviderList], sickbeard.newznabProviderList))
@@ -8672,9 +8673,9 @@ class ConfigProviders(Config):
             provider_url_dict.get(sickbeard.providers.generic_provider_url(temp_provider.url), None)
 
         if e_p:
-            return json.dumps({'error': 'Provider already exists as %s' % e_p.name})
+            return json_dumps({'error': 'Provider already exists as %s' % e_p.name})
 
-        return json.dumps({'success': temp_provider.get_id()})
+        return json_dumps({'success': temp_provider.get_id()})
 
     @staticmethod
     def get_newznab_categories(name, url, key):
@@ -8686,7 +8687,7 @@ class ConfigProviders(Config):
         error = not name and 'Name' or not url and 'Url' or not key and 'Apikey' or ''
         if error:
             error = '\nNo provider %s specified' % error
-            return json.dumps({'success': False, 'error': error})
+            return json_dumps({'success': False, 'error': error})
 
         if name in [n.name for n in sickbeard.newznabProviderList if n.url == url]:
             provider = [n for n in sickbeard.newznabProviderList if n.name == name][0]
@@ -8701,12 +8702,12 @@ class ConfigProviders(Config):
             tv_categories = temp_provider.clean_newznab_categories(temp_provider.all_cats)
             state = False
 
-        return json.dumps({'success': True, 'tv_categories': tv_categories, 'state': state, 'error': ''})
+        return json_dumps({'success': True, 'tv_categories': tv_categories, 'state': state, 'error': ''})
 
     @staticmethod
     def can_add_torrent_rss_provider(name, url, cookies):
         if not name:
-            return json.dumps({'error': 'Invalid name specified'})
+            return json_dumps({'error': 'Invalid name specified'})
 
         provider_dict = dict(
             zip([x.get_id() for x in sickbeard.torrentRssProviderList], sickbeard.torrentRssProviderList))
@@ -8714,13 +8715,13 @@ class ConfigProviders(Config):
         temp_provider = rsstorrent.TorrentRssProvider(name, url, cookies)
 
         if temp_provider.get_id() in provider_dict:
-            return json.dumps({'error': 'A provider exists as [%s]' % provider_dict[temp_provider.get_id()].name})
+            return json_dumps({'error': 'A provider exists as [%s]' % provider_dict[temp_provider.get_id()].name})
         else:
             (succ, errMsg) = temp_provider.validate_feed()
             if succ:
-                return json.dumps({'success': temp_provider.get_id()})
+                return json_dumps({'success': temp_provider.get_id()})
 
-            return json.dumps({'error': errMsg})
+            return json_dumps({'error': errMsg})
 
     @staticmethod
     def check_providers_ping():
@@ -9367,7 +9368,7 @@ class UI(MainHandler):
                                                                      'type': cur_notification.type}
             cur_notification_num += 1
 
-        return json.dumps(messages)
+        return json_dumps(messages)
 
 
 class EventLogs(MainHandler):
@@ -9486,7 +9487,7 @@ class WebFileBrowser(MainHandler):
         """ /legacy """
 
         self.set_header('Content-Type', 'application/json')
-        return json.dumps(folders_at_path(path, True, bool(int(include_files))))
+        return json_dumps(folders_at_path(path, True, bool(int(include_files))))
 
     def complete(self, term, include_files=0, **kwargs):
         """ prevent issues with requests using legacy params """
@@ -9494,7 +9495,7 @@ class WebFileBrowser(MainHandler):
         """ /legacy """
 
         self.set_header('Content-Type', 'application/json')
-        return json.dumps([entry['path'] for entry in folders_at_path(
+        return json_dumps([entry['path'] for entry in folders_at_path(
             os.path.dirname(term), include_files=bool(int(include_files))) if 'path' in entry])
 
 

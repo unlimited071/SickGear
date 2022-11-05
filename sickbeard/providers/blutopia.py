@@ -17,10 +17,6 @@
 
 from collections import OrderedDict
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import re
 import traceback
 

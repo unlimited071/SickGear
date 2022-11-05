@@ -26,10 +26,6 @@ from random import randint
 import datetime
 import glob
 import copy
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import os
 import re
 import time
@@ -40,6 +36,7 @@ from . import webserve
 import encodingKludge as ek
 import exceptions_helper
 from exceptions_helper import ex
+from json_helper import is_orjson, json_dumps, JSON_INDENT, json_loads, JSONEncoder, ORJSON_OPTIONS
 from tornado import gen
 from tornado.concurrent import run_on_executor
 from lib import subliminal
@@ -112,13 +109,14 @@ def api_log(obj, msg, level=logger.MESSAGE):
 class ApiServerLoading(webserve.BaseHandler):
     @gen.coroutine
     def get(self, route, *args, **kwargs):
-        self.finish(json.dumps({'error_msg': 'Server is loading'}))
+        self.finish(json_dumps({'error_msg': 'Server is loading'}))
 
     post = get
 
 
-class PythonObjectEncoder(json.JSONEncoder):
-    def default(self, obj):
+if is_orjson:
+
+    def orjson_default(obj):
         if isinstance(obj, set):
             return list(obj)
         elif isinstance(obj, TVEpisode):
@@ -129,13 +127,32 @@ class PythonObjectEncoder(json.JSONEncoder):
             return SGDatetime.sbfdatetime(obj, d_preset=dateFormat, t_preset='%H:%M %z')
         elif isinstance(obj, datetime.date):
             return SGDatetime.sbfdate(obj, d_preset=dateFormat)
-        return json.JSONEncoder.default(self, obj)
+        raise TypeError
+
+    json_enc_kw = {'default': orjson_default, 'option': ORJSON_OPTIONS}
+
+else:
+
+    class PythonObjectEncoder(JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, set):
+                return list(obj)
+            elif isinstance(obj, TVEpisode):
+                return {'season': obj.season, 'episode': obj.episode}
+            elif isinstance(obj, TVShow):
+                return {'name': obj.name, 'indexer': obj.tvid, 'indexer_id': obj.prodid}
+            elif isinstance(obj, datetime.datetime):
+                return SGDatetime.sbfdatetime(obj, d_preset=dateFormat, t_preset='%H:%M %z')
+            elif isinstance(obj, datetime.date):
+                return SGDatetime.sbfdate(obj, d_preset=dateFormat)
+            return JSONEncoder.default(self, obj)
+
+    json_enc_kw = {'cls': PythonObjectEncoder, 'indent': JSON_INDENT, 'sort_keys': True}
 
 
 class Api(webserve.BaseHandler):
     """ api class that returns json results """
     version = 14  # use an int since float-point is unpredictable
-    indent = 4
 
     def check_xsrf_cookie(self):
         pass
@@ -152,7 +169,7 @@ class Api(webserve.BaseHandler):
         # Incorporate request JSON into arguments dictionary.
         if self.request.body:
             try:
-                json_data = {'payloadjson': json.loads(self.request.body)}
+                json_data = {'payloadjson': json_loads(self.request.body)}
                 self.request.arguments.update(json_data)
             except (BaseException, Exception):
                 raise ApiError('Unable to parse JSON.')
@@ -246,7 +263,7 @@ class Api(webserve.BaseHandler):
     def _out_as_json(self, dict):
         self.set_header('Content-Type', 'application/json; charset=UTF-8')
         try:
-            out = json.dumps(dict, indent=self.indent, sort_keys=True, cls=PythonObjectEncoder)
+            out = json_dumps(dict, **json_enc_kw)
             callback = self.get_query_argument('callback', None) or self.get_query_argument('jsonp', None)
             if None is not callback:
                 out = '%s(%s);' % (callback, out)  # wrap with JSONP call if requested

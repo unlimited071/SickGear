@@ -16,12 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear. If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
 from .generic import Notifier
+from json_helper import json_dumps
 import sickbeard
 import requests
 
@@ -45,7 +41,7 @@ class PushbulletNotifier(Notifier):
             headers = dict(Authorization='Basic %s' % b64encodestring('%s:%s' % (access_token, '')))
             return requests.get(DEVICEAPI_ENDPOINT, headers=headers).text
         except (BaseException, Exception):
-            return json.dumps(dict(error=dict(message='Error failed to connect')))
+            return json_dumps(dict(error=dict(message='Error failed to connect')))
 
     def _notify(self, title, body, access_token=None, device_iden=None, **kwargs):
         """
@@ -65,7 +61,7 @@ class PushbulletNotifier(Notifier):
             headers = {'Authorization': 'Basic %s' % b64encodestring('%s:%s' % (access_token, '')),
                        'Content-Type': 'application/json'}
             resp = requests.post(PUSHAPI_ENDPOINT, headers=headers,
-                                 data=json.dumps(dict(
+                                 data=json_dumps(dict(
                                      type='note', title=title, body=decode_str(body.strip()),
                                      device_iden=device_iden)))
             resp.raise_for_status()

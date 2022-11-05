@@ -23,6 +23,7 @@ import time
 import traceback
 
 from exceptions_helper import ex, ConnectionSkipException
+from json_helper import json_loads
 from lib.cachecontrol import CacheControl, caches
 # from lib.tmdbsimple.configuration import Configuration
 # from lib.tmdbsimple.genres import Genres
@@ -997,7 +998,7 @@ def get_url(url,  # type: AnyStr
 
         if parse_json or proxy_browser:
             try:
-                data_json = response.json()
+                data_json = json_loads(requests_response=response)
                 if proxy_browser:
                     result = ({}, data_json.get('solution', {}).get('response', {}))[isinstance(data_json, dict)]
                 else:

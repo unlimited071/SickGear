@@ -1,11 +1,11 @@
 import requests
 import certifi
-import json
 import sickbeard
 import time
 import datetime
 import logging
 from exceptions_helper import ex, ConnectionSkipException
+from json_helper import json_dumps
 from sg_helpers import get_url, try_int
 
 from .exceptions import *
@@ -246,7 +246,7 @@ class TraktAPI(object):
 
         kwargs = dict(headers=headers, timeout=self.timeout, verify=self.verify)
         if data:
-            kwargs['data'] = json.dumps(data)
+            kwargs['data'] = json_dumps(data)
 
         url = url or self.api_url
         try:

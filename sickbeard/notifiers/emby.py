@@ -15,13 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear. If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST, SHUT_RDWR
 
 from .generic import Notifier
+from json_helper import json_loads
 import sickbeard
 
 from _23 import decode_bytes, decode_str, map_list
@@ -150,7 +147,7 @@ class EmbyNotifier(Notifier):
                     message = decode_str(message)
                     self._log('%s found at %s: udp query response (%s)' % (server, host[0], message))
                     result = ('{"Address":' not in message and message.split('|')[1] or
-                              json.loads(message).get('Address', ''))
+                              json_loads(message).get('Address', ''))
                     if result:
                         break
             except AssertionError:

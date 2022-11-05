@@ -23,6 +23,7 @@ import traceback
 from . import generic
 from .. import logger
 from ..helpers import try_int
+from json_helper import json_loads
 
 from _23 import b64encodestring, filter_iter, map_list, quote, unidecode
 from six import iteritems
@@ -30,11 +31,6 @@ from six import iteritems
 # noinspection PyUnreachableCode
 if False:
     from typing import AnyStr, Tuple
-
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 
 
 class SnowflProvider(generic.TorrentProvider):
@@ -90,7 +86,7 @@ class SnowflProvider(generic.TorrentProvider):
                             # decode json below as get resp will false -ve to 'nodata' when no search results
                             html_json = self.get_url(search_url)
                             if None is not html_json:
-                                data_json = json.loads(html_json)
+                                data_json = json_loads(html_json)
                                 if data_json or 'Cache' != mode:
                                     break
                             if self.should_skip():
