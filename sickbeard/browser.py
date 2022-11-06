@@ -16,11 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
 
-# use the built-in if it's available (python 2.6), if not use the included library
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import os
 import string
 

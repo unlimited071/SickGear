@@ -17,10 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import time
 
 from .generic import Notifier
@@ -28,6 +24,7 @@ from .. import logger
 import sickbeard
 import sickbeard.helpers
 from exceptions_helper import ex
+from json_helper import json_dumps
 
 from _23 import decode_str, etree, quote, unquote, unquote_plus
 
@@ -306,7 +303,7 @@ class KodiNotifier(Notifier):
                 return 'OK' == response.get('result') and {'OK': True} or response.get('result')
 
             self._log_error(u'API error; %s from %s in response to command: %s'
-                            % (json.dumps(response['error']), host, json.dumps(command)))
+                            % (json_dumps(response['error']), host, json_dumps(command)))
         return result
 
     def _update_json(self, host=None, show_name=None):
@@ -375,7 +372,7 @@ class KodiNotifier(Notifier):
 
             self._log_debug(u'Updating %s on %s at %s' % (show_name, host, path))
             command = dict(method='VideoLibrary.Scan',
-                           params={'directory': '%s' % json.dumps(path)[1:-1].replace('\\\\', '\\')})
+                           params={'directory': '%s' % json_dumps(path)[1:-1].replace('\\\\', '\\')})
             response_scan = self._send_json(host, command)
             if not response_scan.get('OK'):
                 self._log_error(u'Update of show directory failed for %s on %s at %s response: %s' %

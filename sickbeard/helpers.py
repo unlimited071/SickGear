@@ -32,11 +32,6 @@ import time
 import uuid
 import sys
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
 import sickbeard
 from . import db, logger, notifiers
 from .common import cpu_presets, mediaExtensions, Overview, Quality, statusStrings, subtitleExtensions, \

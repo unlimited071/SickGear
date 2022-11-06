@@ -8,7 +8,6 @@ __version__ = '1.0'
 __api_version__ = '1.0.0'
 
 import datetime
-import json
 import logging
 
 from lib import tmdbsimple
@@ -19,6 +18,7 @@ from lib.tvinfo_base import CastList, PersonGenders, RoleTypes, \
     TVInfoCharacter, TVInfoPerson, TVInfoShow, TVInfoEpisode, TVInfoSeason, \
     TVINFO_IMDB, TVINFO_TMDB, TVINFO_TVDB, \
     TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_TWITTER
+from json_helper import json_dumps
 from sg_helpers import clean_data, get_url, iterate_chunk, try_int
 
 from _23 import filter_list
@@ -62,7 +62,7 @@ def tmdb_get(self, path, params=None):
 def tmdb_post(self, path, params=None, payload=None):
     url = self._get_complete_url(path)
     params = self._get_params(params)
-    data = json.dumps(payload) if payload else payload
+    data = json_dumps(payload) if payload else payload
     return get_url(url=url, params=params, post_data=data, json=True, raise_skip_exception=True)
 
 
