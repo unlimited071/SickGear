@@ -23,6 +23,13 @@
 * Change improve clarity of ended shows on view-show select2 dropdown for all view modes
 
 
+### 0.25.51 (2022-11-16 14:30:00 UTC)
+
+* Fix process media with a date in parentheses
+* Add rapid fuzz dependency
+* Change add a deprecated message where SickBeard.py is still being used
+
+
 ### 0.25.50 (2022-10-31 14:30:00 UTC)
 
 * Change improve the scope of auth dupe checker
