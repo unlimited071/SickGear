@@ -49,6 +49,20 @@ try:
     is_orjson = getattr(json.JSONEncoder, 'is_orjson', False)
     ORJSON_OPTIONS = json.OPT_NON_STR_KEYS | json.OPT_SORT_KEYS | json.OPT_INDENT_2
 
+    try:
+        import simplejson as json_fallback
+    except ImportError:
+        import json as json_fallback
+
+    def _dump(obj, fp, *args, **kw):
+        fp.write(json.dumps(obj, *args, **kw))
+
+    def _load(fp, *args, **kwargs):
+        return json.loads(fp.read(), *args, **kwargs)
+
+    json.dump = _dump
+    json.load = _load
+
 except ImportError:
     JSONDecodeError = ValueError
     JSONEncodeError = ValueError, TypeError
@@ -63,6 +77,7 @@ except ImportError:
 
         if notPY2:
             from json import JSONDecodeError
+    json_fallback = json
 
 JSONEncoder = json.JSONEncoder
 
@@ -71,11 +86,6 @@ def invoke_json(method, *arg, **kwargs):
     try:
         result = getattr(json, method)(*arg, **kwargs)
     except (JSONDecodeError, JSONEncodeError):
-        try:
-            import simplejson as json_fallback
-        except ImportError:
-            import json as json_fallback
-
         result = getattr(json_fallback, method)(*arg, **kwargs)
 
     return decode_str(result)
@@ -101,6 +111,10 @@ def invoke_load(method, *arg, **kwargs):
         return invoke_json(method, response.text, *arg, **kwargs)
 
     return invoke_json(method, *arg, **kwargs)
+
+
+def json_dump(*arg, **kwargs):
+    return invoke_json('dump', *arg, **kwargs)
 
 
 def json_dumps(*arg, **kwargs):
