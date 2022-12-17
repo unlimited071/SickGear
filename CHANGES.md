@@ -23,6 +23,11 @@
 * Change improve clarity of ended shows on view-show select2 dropdown for all view modes
 
 
+### 0.25.54 (2022-12-17 17:40:00 UTC)
+
+* Fix Trakt API server error handler
+
+
 ### 0.25.53 (2022-12-17 15:50:00 UTC)
 
 * Change update dateutil zoneinfo fallback to 2022g
