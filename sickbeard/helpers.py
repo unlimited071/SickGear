@@ -1736,6 +1736,8 @@ def xhtml_escape(text, br=True):
     :return: Text with entities replaced
     :rtype: AnyStr
     """
+    if not text:
+        return text
     from tornado import escape
     if br:
         text = re.sub(r'\r?\n', '<br>', text)
