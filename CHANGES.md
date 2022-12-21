@@ -23,6 +23,11 @@
 * Change improve clarity of ended shows on view-show select2 dropdown for all view modes
 
 
+### 0.25.57 (2022-12-21 13:00:00 UTC)
+
+* Fix replace dead predb.ovh with predb.de for provider scene filter
+
+
 ### 0.25.56 (2022-12-20 19:00:00 UTC)
 
 * Fix webapi search
