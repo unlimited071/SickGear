@@ -348,7 +348,7 @@ class TVInfoShow(dict):
 
         raise AttributeError
 
-    def __getitem__(self, key):
+    def __getitem__(self, key, raise_error=True):
         if isinstance(key, string_types) and key in self.__dict__:
             return self.__dict__[key]
 
@@ -360,17 +360,18 @@ class TVInfoShow(dict):
             # Non-numeric request is for show-data
             return dict.__getitem__(self.data, key)
 
-        # Data wasn't found, raise appropriate error
-        if isinstance(key, integer_types) or isinstance(key, string_types) and key.isdigit():
-            # Episode number x was not found
-            raise BaseTVinfoSeasonnotfound('Could not find season %s' % (repr(key)))
-        else:
-            # If it's not numeric, it must be an attribute name, which
-            # doesn't exist, so attribute error.
-            raise BaseTVinfoAttributenotfound('Cannot find attribute %s' % (repr(key)))
+        if raise_error:
+            # Data wasn't found, raise appropriate error
+            if isinstance(key, integer_types) or isinstance(key, string_types) and key.isdigit():
+                # Episode number x was not found
+                raise BaseTVinfoSeasonnotfound('Could not find season %s' % (repr(key)))
+            else:
+                # If it's not numeric, it must be an attribute name, which
+                # doesn't exist, so attribute error.
+                raise BaseTVinfoAttributenotfound('Cannot find attribute %s' % (repr(key)))
 
     def get(self, __key, __default=None):
-        return self.__getitem__(__key) or __default
+        return self.__getitem__(__key, raise_error=None is __default) or __default
 
     def __deepcopy__(self, memo):
         cls = self.__class__
