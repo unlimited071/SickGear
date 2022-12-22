@@ -21,6 +21,7 @@ import tempfile
 import threading
 import time
 import traceback
+import unicodedata
 
 from exceptions_helper import ex, ConnectionSkipException
 from json_helper import json_loads
@@ -659,7 +660,7 @@ def clean_data(data):
     if isinstance(data, dict):
         return {k: clean_data(v) for k, v in iteritems(data)}
     if isinstance(data, string_types):
-        return html_unescape(data).strip().replace(u'&amp;', u'&')
+        return unicodedata.normalize('NFKD', html_unescape(data).strip().replace(u'&amp;', u'&'))
     return data
 
 
