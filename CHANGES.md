@@ -23,6 +23,15 @@
 * Change improve clarity of ended shows on view-show select2 dropdown for all view modes
 
 
+### 0.25.59 (2023-01-03 00:10:00 UTC)
+
+* Fix send mark=bad to NZBGet when minimum dir size test fails
+* Change create Python Unit test workflow
+* Fix ignore_and_require_words_tests.py
+* Change revert scene_helpers_tests.py
+* Change unit tests: force python to garbage collect all db connections
+
+
 ### 0.25.58 (2022-12-21 20:30:00 UTC)
 
 * Fix improve data cleanse from TV info source
