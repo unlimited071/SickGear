@@ -24,6 +24,14 @@
 * Fix tv_tests for 'invalid sid search (tvid above tvid_bitmask)' because of added TMDB source
 
 
+### 0.25.60 (2023-01-03 13:30:00 UTC)
+
+* Fix search results sorting
+* Change add windows and macos GitHub unit test jobs
+* Change update GitHub actions/setup-python v3 to v4
+* Change fix typo on config providers view
+
+
 ### 0.25.59 (2023-01-03 00:10:00 UTC)
 
 * Fix send mark=bad to NZBGet when minimum dir size test fails
