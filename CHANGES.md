@@ -12,6 +12,7 @@
 * Add select2 control to view-show/Change show
 * Add support or orjson, with fallback to simplejson then native json
 * Change migrate Kodi addon to Kodi (Matrix), (Leia) and older can use repo source url /kodi-legacy
+* Change ensure XML header in Kodi nfo files
 * Change fix some typos
 
 
