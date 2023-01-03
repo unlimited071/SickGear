@@ -6,7 +6,7 @@
 * Change return unknown.png flag if a requested flag image file doesn't exist
 * Change use regular cast from season as show cast
 * Change prefer recent cast in cast order
-* Change filter non main appearance of main cast persons
+* Change filter non-main appearance of main cast persons
 * Add direct match to relative sort as first priority of search results
 * Change improve memory management
 * Add select2 control to view-show/Change show
@@ -21,6 +21,7 @@
 * Fix order for networks in tmdb_api
 * Fix _should_cast_update and load_from_tvinfo
 * Change improve clarity of ended shows on view-show select2 dropdown for all view modes
+* Fix tv_tests for 'invalid sid search (tvid above tvid_bitmask)' because of added TMDB source
 
 
 ### 0.25.59 (2023-01-03 00:10:00 UTC)
