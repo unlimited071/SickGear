@@ -24,8 +24,8 @@ from lib.exceptions_helper import ConnectionSkipException, ex
 from lib.pytvmaze import tvmaze
 # from .tvmaze_exceptions import *
 from lib.tvinfo_base import TVInfoBase, TVInfoImage, TVInfoImageSize, TVInfoImageType, TVInfoCharacter, Crew, \
-    crew_type_names, TVInfoPerson, RoleTypes, TVInfoShow, TVInfoEpisode, TVInfoIDs, TVInfoSeason, PersonGenders, \
-    TVINFO_TVMAZE, TVINFO_TVDB, TVINFO_IMDB
+    crew_type_names, TVInfoPerson, RoleTypes, TVInfoShow, TVInfoEpisode, TVInfoIDs, TVInfoNetwork, TVInfoSeason, \
+    PersonGenders, TVINFO_TVMAZE, TVINFO_TVDB, TVINFO_IMDB
 
 from _23 import filter_iter
 from six import integer_types, iteritems, string_types
@@ -473,6 +473,7 @@ class TvMaze(TVInfoBase):
                         self._set_episode(sid, cur_sp)
 
             if show_data.seasons:
+                networks = {}
                 for _, cur_season in iteritems(show_data.seasons):
                     ti_season = None
                     if cur_season.season_number not in ti_show:
@@ -480,16 +481,26 @@ class TvMaze(TVInfoBase):
                             ti_season = ti_show[0]
                         else:
                             log.error('error episodes have no numbers')
-                    ti_season = ti_season or ti_show[cur_season.season_number]
+                    ti_season = ti_season or ti_show[cur_season.season_number]  # type: TVInfoSeason
                     for k, v in iteritems(season_map):
                         setattr(ti_season, k, clean_data(getattr(cur_season, v, None)) or empty_se.get(v))
                     if cur_season.network:
                         self._set_network(ti_season, cur_season.network, False)
                     elif cur_season.web_channel:
                         self._set_network(ti_season, cur_season.web_channel, True)
+                    if ti_season.network:
+                        networks[cur_season.season_number] = TVInfoNetwork(
+                            name=ti_season.network, country=ti_season.network_country,
+                            country_code=ti_season.network_country_code, n_id=ti_season.network_id,
+                            stream=ti_season.network_is_stream, timezone=ti_season.network_timezone
+                        )
                     if cur_season.image:
                         ti_season.poster = cur_season.image.get('original')
                 ti_show.season_images_loaded = True
+                seen = set()
+                ti_show.networks = [seen.add(r[1].name) or r[1]
+                                    for r in sorted(iteritems(networks), key=lambda a: a[0], reverse=True)
+                                    if r[1].name not in seen]
 
             ti_show.ep_loaded = True
 
