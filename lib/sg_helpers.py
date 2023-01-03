@@ -1349,6 +1349,7 @@ def write_file(filepath,  # type: AnyStr
                data,  # type: Union[AnyStr, etree.Element, requests.Response]
                raw=False,  # type: bool
                xmltree=False,  # type: bool
+               xml_header=False,  # type: bool
                utf8=False,  # type: bool
                raise_exceptions=False  # type: bool
                ):  # type: (...) -> bool
@@ -1358,6 +1359,7 @@ def write_file(filepath,  # type: AnyStr
     :param data: data to write
     :param raw: write binary or text
     :param xmltree: use xmel tree
+    :param xml_header: prepend xmel header
     :param utf8: use UTF8
     :param raise_exceptions: raise excepitons
     :return: succuess
@@ -1387,10 +1389,12 @@ def write_file(filepath,  # type: AnyStr
 
                 if xmltree:
                     with ek.ek(io.FileIO, filepath, w_mode) as fh:
+                        params = {}
                         if utf8:
-                            data.write(fh, encoding='utf-8')
-                        else:
-                            data.write(fh)
+                            params = dict(encoding='utf-8')
+                        if xml_header:
+                            params.update(dict(xml_declaration=True))
+                        data.write(fh, **params)
                 else:
                     if isinstance(data, text_type):
                         with ek.ek(io.open, filepath, w_mode, encoding='utf-8') as fh:
