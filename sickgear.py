@@ -54,7 +54,7 @@ is_win = 'win' == sys.platform[0:3]
 try:
     try:
         py_cache_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '__pycache__'))
-        for pf in ['_cleaner.pyc', '_cleaner.pyo']:
+        for pf in ['_cleaner.pyc', '_cleaner.pyo', '.cleaned008.tmp']:
             cleaner_file = os.path.normpath(os.path.join(os.path.normpath(os.path.dirname(__file__)), pf))
             if os.path.isfile(cleaner_file):
                 os.remove(cleaner_file)
@@ -98,7 +98,7 @@ from sickbeard.event_queue import Events
 from sickbeard.tv import TVShow
 from sickbeard.webserveInit import WebServer
 
-from six import integer_types, iteritems
+from six import integer_types, iteritems, PY2
 
 throwaway = datetime.datetime.strptime('20110101', '%Y%m%d')
 rollback_loaded = None
@@ -538,6 +538,47 @@ class SickGear(object):
                 sickbeard.classes.loading_msg.message = 'Cleaning ignore/require words lists'
                 clean_ignore_require_words()
                 db.DBConnection().set_flag('ignore_require_cleaned')
+
+        # check PY version before doing a switch, don't switch if running PY2 as new branch requires PY3
+        # this logic is in the branch code that is "before switch", and not in the new branch code "after switch"
+        switch_to = migrate = load_msg = None
+        py = sys.version_info[0:3] >= (3, 7, 1)
+        if py:
+            tmp_v = sickbeard.version_checker.SoftwareUpdater()
+            if 'git' == tmp_v.install_type:
+                # noinspection PyProtectedMember
+                tmp_branch = tmp_v.updater._find_installed_branch()
+                if tmp_branch:
+                    if 'master' in tmp_branch:
+                        switch_to = 'main'
+                    elif 'develop' in tmp_branch:
+                        switch_to = 'dev'
+
+            if switch_to:
+                sickbeard.BRANCH = switch_to
+                tmp_v.updater.branch = switch_to
+                load_msg = 'Switching to Python 3 only `%s` branch' % switch_to
+                sickbeard.classes.loading_msg.set_msg_progress(load_msg, 'Switching')
+                migrate = sickbeard.MEMCACHE['update_restart'] = tmp_v.updater.update()
+
+        if migrate:
+            sickbeard.classes.loading_msg.set_msg_progress(load_msg, 'Finished')
+        else:
+            if load_msg:
+                sickbeard.classes.loading_msg.set_msg_progress(load_msg, 'Failed, see error log')
+            if not PY2:
+                sickbeard.classes.loading_msg.message = 'Critical: Cannot switch to maintained branch'
+                logger_note = 'Changing branch failed, force change the branch to `dev` or `main`.'
+            else:
+                sickbeard.classes.loading_msg.set_msg_progress(
+                    'SickGear is being run with Python 2', '*** BAD ***')
+                sickbeard.classes.loading_msg.set_msg_progress(
+                    'For new features and updates', '* Python 3 is required *')
+                time.sleep(10)
+                logger_note = u'Python 3 is required, but Python 2 is being used to run SickGear.'
+            log_msg = u'New features and updates are no longer available on this branch. ' + logger_note
+            logger.log(log_msg, logger.ERROR)
+            sickbeard.MEMCACHE['footer_msg'] = log_msg
 
         # Fire up threads
         sickbeard.classes.loading_msg.message = 'Starting threads'
