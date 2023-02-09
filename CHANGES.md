@@ -1,5 +1,6 @@
-﻿### 0.26.xx (202x-xx-xx xx:xx:00 UTC)
+﻿### 0.26.0 (2023-02-09 11:25:00 UTC)
 
+* Code frozen on 0.xx.x range. Releases continue at major 3.xx.x version on new named `main` and `dev` branches
 * Update Tornado_py3 Web Server 6.1.0 (2047e7a) to 6.2.0 (a4f08a3)
 * Add support for scene episode number to multiple episodes
 * Add TMDB TV info source
@@ -14,15 +15,6 @@
 * Change migrate Kodi addon to Kodi (Matrix), (Leia) and older can use repo source url /kodi-legacy
 * Change ensure XML header in Kodi nfo files
 * Change fix some typos
-
-
-[develop changelog]
-
-* Change only add IMDb person id when available to Tmdb Person
-* Fix order for networks in tmdb_api
-* Fix _should_cast_update and load_from_tvinfo
-* Change improve clarity of ended shows on view-show select2 dropdown for all view modes
-* Fix tv_tests for 'invalid sid search (tvid above tvid_bitmask)' because of added TMDB source
 
 
 ### 0.25.61 (2023-01-25 02:00:00 UTC)
