@@ -21,6 +21,7 @@ import platform
 import re
 import shutil
 import stat
+import sys
 import tarfile
 import time
 import traceback
@@ -33,11 +34,16 @@ from exceptions_helper import ex
 import sickbeard
 from . import logger, notifiers, ui
 from .piper import check_pip_outdated
-from sg_helpers import cmdline_runner
+from sg_helpers import cmdline_runner, get_url
 
 # noinspection PyUnresolvedReferences
 from six.moves import urllib
+from six import string_types
 from _23 import list_keys
+
+# noinspection PyUnreachableCode
+if False:
+    from typing import Tuple
 
 
 class PackagesUpdater(object):
@@ -105,6 +111,7 @@ class SoftwareUpdater(object):
     """
 
     def __init__(self):
+        self._min_python = (100, 0)  # set default to absurdly high to prevent update
         self.install_type = self.find_install_type()
 
         if 'git' == self.install_type:
@@ -113,6 +120,41 @@ class SoftwareUpdater(object):
             self.updater = SourceUpdateManager()
         else:
             self.updater = None
+
+    @property
+    def is_updatable(self):
+        # type: (...) -> bool
+        """
+        test if the used Python version is greater or equal the required version and therefore, is update capable
+        """
+        self.get_python_requirement()
+        return sys.version_info[:3] >= self.required_python
+
+    @property
+    def required_python(self):
+        # type: (...) -> Tuple[int, int]
+        """
+        the required Python version that is update capable
+
+        value is cached after first calling get_python_requirement()
+        """
+        return self._min_python
+
+    def get_python_requirement(self):
+        """
+        get the required Python version from remote source
+        """
+        branch = self.get_branch()
+        branch = {'master': 'main', 'develop': 'dev'}.get(branch, 'dev')
+        branch = ('dev', branch)[branch in ('main', 'dev')]
+        data = get_url(r'https://github.com/SickGear/SickGear/raw/%s/sickgear/py_requirement.data' % branch,
+                       failure_monitor=False)
+        try:
+            self._min_python = (100, 0)  # set default to absurdly high to prevent update
+            if isinstance(data, string_types):
+                self._min_python = tuple(int(_v) for _v in data.splitlines()[0].split('.'))
+        except (BaseException, Exception):
+            pass
 
     def run(self, force=False):
         # set current branch version
@@ -152,6 +194,10 @@ class SoftwareUpdater(object):
             logger.log('Checking not enabled for software updates')
             return False
 
+        if not self.is_updatable:
+            self._log_cannot_update()
+            return False
+
         logger.log('Checking for "%s" software update%s' % (self.install_type, ('', ' (from menu)')[force]))
         if not self.updater.need_update():
             sickbeard.NEWEST_VERSION_STRING = None
@@ -167,9 +213,21 @@ class SoftwareUpdater(object):
 
         return True
 
+    def _log_cannot_update(self):
+        if self._min_python >= (100, 0):
+            logger.warning('Cannot update SickGear because minimum required Python version is not available')
+        else:
+            logger.error('Currently used Python version %s does not meet the minimum required %s' %
+                         ('.'.join(['%s' % _v for _v in sys.version_info[:3]]),
+                          '.'.join(['%s' % _v for _v in self.required_python])))
+
     def update(self):
         # update branch with current config branch value
         self.updater.branch = sickbeard.BRANCH
+
+        if not self.is_updatable:
+            self._log_cannot_update()
+            return False
 
         # check for updates
         if self.updater.need_update():
@@ -217,6 +275,8 @@ class GitUpdateManager(UpdateManager):
 
         self._cur_commit_hash = None
         self._newest_commit_hash = None
+        self._old_commit_hash = None
+        self._old_branch = None
         self._num_commits_behind = 0
         self._num_commits_ahead = 0
         self._cur_pr_number = self.get_cur_pr_number()
@@ -395,6 +455,8 @@ class GitUpdateManager(UpdateManager):
                     return
 
                 self._newest_commit_hash = cur_commit_hash
+                self._old_commit_hash = cur_commit_hash
+                self._old_branch = self._find_installed_branch()
             else:
                 logger.debug(u'git didn\'t return newest commit hash')
                 return
@@ -419,6 +481,8 @@ class GitUpdateManager(UpdateManager):
             output, _, _ = self._run_git(['ls-remote', '%s' % sickbeard.GIT_REMOTE,
                                           'refs/pull/%s/head' % self._cur_pr_number])
             self._newest_commit_hash = re.findall('(.*)\t', output)[0]
+            self._old_commit_hash = None
+            self._old_branch = None
 
     def set_newest_text(self):
         # if we're up to date then don't set this
@@ -459,6 +523,8 @@ class GitUpdateManager(UpdateManager):
         if not self._cur_commit_hash:
             return True
 
+        self._old_branch = None
+        self._old_commit_hash = None
         try:
             self._check_github_for_update()
         except (BaseException, Exception) as e:
@@ -472,6 +538,44 @@ class GitUpdateManager(UpdateManager):
             return True
 
         return False
+
+    @staticmethod
+    def _is_python_supported():
+        """
+        check for required python version on current install
+        """
+        try:
+            f_path = ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickgear', 'py_requirement.data')
+            if not ek.ek(os.path.isfile, f_path):
+                f_path = ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickbeard', 'py_requirement.data')
+            with ek.ek(open, f_path, 'rt') as f:
+                data = f.read()
+        except (BaseException, Exception):
+            return False
+        if isinstance(data, string_types):
+            try:
+                min_python = tuple(int(_v) for _v in data.splitlines()[0].split('.'))
+            except (BaseException, Exception):
+                min_python = (100, 0)  # set default to absurdly high to prevent update
+            return min_python <= sys.version_info[:3]
+        return False
+
+    def revert_update(self):
+        if self._old_commit_hash:
+            if self._old_branch:
+                cur_branch = self._find_installed_branch()
+                if cur_branch and self._old_branch != cur_branch:
+                    # in case of a branch switch first switch back to old branch
+                    _, _, exit_status = self._run_git(['checkout', '-f', '-B', '%s' % self._old_branch,
+                                                       '%s/%s' % (sickbeard.GIT_REMOTE, self._old_branch)])
+                    if 0 != exit_status:
+                        return exit_status
+            _, _, exit_status = self._run_git(['reset', '--hard', '"%s"' % self._old_commit_hash])
+            if 0 == exit_status:
+                self._old_commit_hash = None
+                self._old_branch = None
+            return exit_status
+        return 1
 
     def update(self):
         """
@@ -491,14 +595,25 @@ class GitUpdateManager(UpdateManager):
             _, _, exit_status = self._run_git(['checkout', '-f', '-B', '%s' % self.branch,
                                                '%s/%s' % (sickbeard.GIT_REMOTE, self.branch)])
 
-        if 0 == exit_status:
-            self._find_installed_version()
+        try:
+            if 0 == exit_status:
+                # recheck that the checked out version supports this python version and revert if not
+                if self._old_commit_hash and not self._is_python_supported():
+                    if 0 != self.revert_update():
+                        logger.error('Failed to revert update')
+                    self._find_installed_version()
+                    return False
 
-            # Notify update successful
-            notifiers.notify_git_update(sickbeard.CUR_COMMIT_HASH if sickbeard.CUR_COMMIT_HASH else '')
-            return True
+                self._find_installed_version()
 
-        return False
+                # Notify update successful
+                notifiers.notify_git_update(sickbeard.CUR_COMMIT_HASH if sickbeard.CUR_COMMIT_HASH else '')
+                return True
+
+            return False
+        finally:
+            self._old_branch = None
+            self._old_commit_hash = None
 
     def list_remote_branches(self):
         output, _, exit_status = self._run_git(['ls-remote', '--heads', '%s' % sickbeard.GIT_REMOTE])

@@ -545,7 +545,15 @@ class SickGear(object):
         py = sys.version_info[0:3] >= (3, 7, 1)
         if py:
             tmp_v = sickbeard.version_checker.SoftwareUpdater()
-            if 'git' == tmp_v.install_type:
+            if not tmp_v.is_updatable:
+                if tmp_v.required_python >= (100, 0):
+                    reason_msg = 'Cannot update SickGear because minimum required Python version is not available'
+                else:
+                    reason_msg = 'Switch to Python 3 needs version %s or higher' % '.'.join(
+                        ['%s' % _v for _v in tmp_v.required_python])
+                sickbeard.classes.loading_msg.set_msg_progress('SickGear upgrade', reason_msg)
+                time.sleep(10)
+            elif 'git' == tmp_v.install_type:
                 # noinspection PyProtectedMember
                 tmp_branch = tmp_v.updater._find_installed_branch()
                 if tmp_branch:
