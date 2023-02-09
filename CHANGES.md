@@ -25,6 +25,16 @@
 * Fix tv_tests for 'invalid sid search (tvid above tvid_bitmask)' because of added TMDB source
 
 
+### 0.25.61 (2023-01-25 02:00:00 UTC)
+
+* Change with the NEW YEAR comes an important change...
+* Change installations running Python 3 will upgrade to a Python 3 only `main` or `dev` branch
+* Change installations running Python 2 must switch to Python 3 to continue getting new features and updates
+* Change the web UI footer that persists running Python 2 with a reminder to switch to Python 3 for features and updates  
+* Remove GitHub CI tests for deprecated branches
+* Update repo readme for `master` and `develop` deprecated branches
+
+
 ### 0.25.60 (2023-01-03 13:30:00 UTC)
 
 * Fix search results sorting
