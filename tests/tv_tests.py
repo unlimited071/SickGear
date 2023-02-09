@@ -224,7 +224,7 @@ find_tests = [
               {'para': {'show_id': {TVINFO_TVMAZE: 22, TVINFO_TVRAGE: 785}},
                'result': None,
                'description': 'search for 2 non-existing ids without mapping'},
-              {'para': {'show_id': {TVINFO_TMDB: 123}},
+              {'para': {'show_id': {TVINFO_IMDB: 123}},
                'result': None, 'description': 'invalid sid search (tvid above tvid_bitmask)'},
               {'para': {'show_id': '%s:123' % TVINFO_TVDB}, 'result': {'tvid': TVINFO_TVDB, 'prodid': 123},
                'description': 'simple search via tvid_prodid string'},

@@ -15,10 +15,6 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import re
 import traceback
 
@@ -27,6 +23,7 @@ from .. import common, logger
 from ..helpers import try_int
 
 from bs4_parser import BS4Parser
+from json_helper import json_dumps
 
 from _23 import filter_list, unidecode, unquote_plus
 from six import iteritems
@@ -185,7 +182,7 @@ class NebulanceProvider(generic.TorrentProvider):
 
         json_rpc = (lambda args:
                     '{"jsonrpc": "2.0", "id": 1, "method": "getTorrents", "params": ["%s", %s, %s, %s, %s]}' %
-                    (self.api_key, json.dumps(args.get('params', '')), 100, args.get('page', 0), 0))
+                    (self.api_key, json_dumps(args.get('params', '')), 100, args.get('page', 0), 0))
 
         for mode in search_params:
             for search_string in search_params[mode]:

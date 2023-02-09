@@ -16,9 +16,12 @@
 
 from __future__ import with_statement
 
+import random
+import weakref
 from collections import Counter, OrderedDict
 from functools import reduce
 from itertools import chain
+from weakref import ReferenceType
 
 import datetime
 import glob
@@ -42,6 +45,7 @@ import sickbeard
 from . import db, helpers, history, image_cache, indexermapper, logger, \
     name_cache, network_timezones, notifiers, postProcessor, subtitles
 from .anime import AniGroupList
+from .classes import weakList
 from .common import Quality, statusStrings, \
     ARCHIVED, DOWNLOADED, FAILED, IGNORED, SKIPPED, SNATCHED, SNATCHED_ANY, SNATCHED_PROPER, UNAIRED, UNKNOWN, WANTED, \
     NAMING_DUPLICATE, NAMING_EXTEND, NAMING_LIMITED_EXTEND, NAMING_LIMITED_EXTEND_E_PREFIXED, NAMING_SEPARATED_REPEAT
@@ -57,7 +61,7 @@ from lib import imdbpie, subliminal
 from lib.dateutil import tz
 from lib.dateutil.parser import parser as du_parser
 from lib.fuzzywuzzy import fuzz
-from lib.tvinfo_base import TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_SLUG, TVINFO_TWITTER, TVINFO_WIKIPEDIA
+from lib.tvinfo_base import RoleTypes, TVINFO_FACEBOOK, TVINFO_INSTAGRAM, TVINFO_SLUG, TVINFO_TWITTER, TVINFO_WIKIPEDIA
 from lib.tvinfo_base.exceptions import *
 from sg_helpers import calc_age, int_to_time, remove_file_perm, time_to_int
 
@@ -66,7 +70,7 @@ from six import integer_types, iteritems, itervalues, moves, PY2, string_types
 
 # noinspection PyUnreachableCode
 if False:
-    from typing import Any, AnyStr, Dict, List, Optional, Set, Text, Union
+    from typing import Any, AnyStr, Dict, List, Optional, Set, Text, Tuple, Union
     from sqlite3 import Row
     from lib.tvinfo_base import CastList, Character as TVINFO_Character, Person as TVINFO_Person, \
         TVInfoEpisode, TVInfoShow
@@ -293,7 +297,7 @@ class Referential(object):
     This class superimposes handling for a string based ID named `ref_id`.
 
     __init__ will pass back control untouched to the object deriving
-    from this one if an integer is passed so that integer ID can peform
+    from this one if an integer is passed so that integer ID can perform
     """
 
     def __init__(self, sid=None):
@@ -314,17 +318,17 @@ class Referential(object):
                ):  # type: (...) -> Union[tuple[Optional[AnyStr, int], Optional[AnyStr, int]], AnyStr]
         """
         return either,
-         1) a prefered external unique id for a consistent reliable `reference`, or the internal row id as fallback
+         1) a preferred external unique id for a consistent reliable `reference`, or the internal row id as fallback
          2) convert a consistent `reference` to src and src_id to use for matching to an internal row id
             uses param rid or self._rid as reference id to convert if either is not Nonetype
 
         for example,
-         1) if string is False, prefered static tuple[tvid, id], or tuple[None, id] if ids not set
-         2)          otherwise, prefered static 'tvid:id', or 'id' if ids not set
+         1) if string is False, preferred static tuple[tvid, id], or tuple[None, id] if ids not set
+         2)          otherwise, preferred static 'tvid:id', or 'id' if ids not set
          3) if string is False and self._rid contains ':', list[src, src_id]
          4)           otherwise if self._rid contains ':', list['src', 'src_id']
 
-        reason, a row id is highly volatile, but a prefered ID is more reliable.
+        reason, a row id is highly volatile, but a preferred ID is more reliable.
         use cases,
          show removed and readded, or src switched, then refreshing any character/person views will be consistent.
          can share/save a character/person link/bookmark as it will be consistent across instances.
@@ -1322,7 +1326,7 @@ class TVShow(TVShowBase):
             raise exceptions_helper.MultipleShowObjectsException('Can\'t create a show if it already exists')
 
         self._airtime = None  # type: Optional[datetime.time]
-        self._cast_list = None  # type: Optional[List[Character]]
+        self._cast_list = None  # type: Optional[ReferenceType[List[Character]]]
         self._last_found_on_indexer = -1  # type: int
         self._location = self.path = ''  # type: AnyStr
         # self._is_location_good = None
@@ -1389,9 +1393,16 @@ class TVShow(TVShowBase):
     @property
     def cast_list(self):
         # type: (...) -> List[Character]
-        if None is self._cast_list:
-            self._load_cast_from_db()
-        return self._cast_list
+        if None is self._cast_list or (isinstance(self._cast_list, ReferenceType) and None is self._cast_list()):
+            v = self._load_cast_from_db()
+            self._cast_list = weakref.ref(v)
+            return self._cast_list()
+        return self._cast_list()
+
+    @cast_list.setter
+    def cast_list(self, value):
+        # type: (weakList[Character]) -> None
+        self._cast_list = None if not isinstance(value, weakList) else weakref.ref(value)
 
     @property
     def network_id(self):
@@ -1782,15 +1793,17 @@ class TVShow(TVShowBase):
         return self.sxe_ep_obj[season][episode]
 
     def _load_cast_from_db(self):
+        # type: (...) -> List[Character]
         # cast_list = []
-        old_list = {c.id for c in self._cast_list or []}
+        old_cast = [] if None is self._cast_list else self._cast_list()
+        old_list = {c.id for c in old_cast or []}
         my_db = db.DBConnection()
         sql_result = my_db.select(
             """
             SELECT castlist.sort_order AS sort_order, characters.name AS name,
             characters.bio AS c_bio, characters.id AS c_id,
             characters.image_url AS image_url, characters.thumb_url AS thumb_url,
-            characters.updated AS c_updated,
+            characters.updated AS c_updated, castlist.updated AS cast_updated,
             persons.name AS p_name, persons.gender AS gender, persons.bio AS p_bio,
             persons.birthdate AS birthdate, persons.thumb_url AS p_thumb,
             persons.image_url AS p_image, persons.deathdate AS deathdate, persons.id AS p_id,
@@ -1814,10 +1827,10 @@ class TVShow(TVShowBase):
             WHERE castlist.indexer = ? AND castlist.indexer_id = ?
             ORDER BY castlist.sort_order       
             """, [self.tvid, self.prodid])
-        self._cast_list = self._cast_list or []
+        old_cast = old_cast or []
         for cur_row in sql_result:
             existing_character = next(
-                (c for c in self._cast_list or [] if None is not c.id and c.id == cur_row['c_id']),
+                (c for c in old_cast or [] if None is not c.id and c.id == cur_row['c_id']),
                 None)  # type: Optional[Character]
             birthdate = try_int(cur_row['birthdate'], None)
             birthdate = birthdate and datetime.date.fromordinal(cur_row['birthdate'])
@@ -1855,6 +1868,7 @@ class TVShow(TVShowBase):
                             real_name=cur_row['realname'], show_obj=self, sid=cur_row['p_id'],
                             thumb_url=cur_row['p_thumb'], updated=cur_row['p_updated'])
             if existing_character:
+                existing_character.updated = cur_row['cast_updated']
                 try:
                     old_list.remove(existing_character.id)
                 except (BaseException, Exception):
@@ -1879,19 +1893,21 @@ class TVShow(TVShowBase):
                 else:
                     existing_character.person.append(person)
             else:
-                self._cast_list.append(Character(
+                old_cast.append(Character(
                     cur_row['name'],
                     bio=cur_row['c_bio'], ids=c_ids, image_url=cur_row['image_url'], person=[person],
                     persons_years=p_years, show_obj=self, sid=cur_row['c_id'],
-                    thumb_url=cur_row['thumb_url'], updated=cur_row['c_updated']))
-        self._cast_list = [c for c in self._cast_list or [] if c.id not in old_list]
+                    thumb_url=cur_row['thumb_url'], updated=cur_row['cast_updated']))
+        cast_list = weakList(c for c in old_cast or [] if c.id not in old_list)
+        self.cast_list = cast_list
+        return cast_list
 
     def cast_list_id(self):
         # type: (...) -> Set
         """
         return an identifier that represents the current state of the show cast list
 
-        used to tell if a change has occured in a cast list after time/process
+        used to tell if a change has occurred in a cast list after time/process
         """
         return set((c.name, c.image_url or '', c.thumb_url or '',
                     hash(*([', '.join(p.name for p in c.person or [] if p.name)])))
@@ -1928,9 +1944,9 @@ class TVShow(TVShowBase):
              ' LEFT JOIN persons p on c.person_id = p.id WHERE p.id IS NULL);'],
         ]
 
-    def _save_cast_list(self, removed_char_ids=None, force=False, stop_event=None):
-        # type: (Union[List[integer_types], Set[integer_types]], bool, threading.Event) -> None
-        if self._cast_list:
+    def _save_cast_list(self, removed_char_ids=None, force=False, stop_event=None, cast_list=None):
+        # type: (Union[List[integer_types], Set[integer_types]], bool, threading.Event, List[Character]) -> None
+        if cast_list:
             my_db = db.DBConnection()
             cl = []
             for cur_id in removed_char_ids or []:
@@ -1941,7 +1957,7 @@ class TVShow(TVShowBase):
                     """, [self.tvid, self.prodid, cur_id]]
                 ])
             update_date = datetime.date.today().toordinal()
-            for cur_enum, cur_cast in enumerate(self._cast_list, 1):
+            for cur_enum, cur_cast in enumerate(cast_list, 1):
                 if stop_event and stop_event.is_set():
                     return
                 cur_cast.save_to_db(show_obj=self, force=force, stop_event=stop_event)
@@ -2701,6 +2717,50 @@ class TVShow(TVShowBase):
             return datetime.time(hour=hour, minute=minute)
         return None
 
+    def _get_airtime(self):
+        # type: (...) -> Tuple[Optional[datetime.time], Optional[string_types], Optional[string_types]]
+        """
+        try to get airtime from trakt
+        """
+        try:
+            tvinfo_config = sickbeard.TVInfoAPI(TVINFO_TRAKT).api_params.copy()
+            t = sickbeard.TVInfoAPI(TVINFO_TRAKT).setup(**tvinfo_config)
+            results = t.search_show(ids={self._tvid: self._prodid})
+            for _r in results:
+                if 'show' != _r['type']:
+                    continue
+                if _r['ids'][TVINFO_TMDB] == self._prodid:
+                    try:
+                        h, m = _r['airs']['time'].split(':')
+                        h, m = try_int(h, None), try_int(m, None)
+                        if None is not h and None is not m:
+                            return datetime.time(hour=h, minute=m), _r['airs'].get('time'), _r['airs'].get('day')
+                    except (BaseException, Exception):
+                        continue
+        except (BaseException, Exception):
+            return None, None, None
+        return None, None, None
+
+    def _should_cast_update(self, show_info_cast):
+        # type: (CastList) -> bool
+        """
+        return if cast list has changed and should be updated
+        """
+        cast_list = self.cast_list
+        existing_cast = set(hash(*([', '.join(p.name for p in c.person or [] if p.name)]))
+                            for c in cast_list or [] if c.name)
+        new_cast = set(hash(*([', '.join(p.name for p in c.person or [] if p.name)]))
+                       for c_t, c_l in iteritems(show_info_cast or {}) for c in c_l or [] if c.name
+                       and c_t in (RoleTypes.ActorMain, RoleTypes.Host, RoleTypes.Interviewer, RoleTypes.Presenter))
+        now = datetime.date.today().toordinal()
+        max_age = random.randint(30, 60)
+        no_image_cast = any(not (c.image_url or c.thumb_url) and (random.randint(4, 14) < now - c.updated)
+                            for c in cast_list or [] if c.name)
+        too_old_char = any(max_age < now - c.updated for c in cast_list or [] if c.name)
+        # too_old_person = any(any(max_age < now - p.updated for p in c.person or [] if p.name)
+        #                      for c in cast_list or [] if c.name)
+        return existing_cast != new_cast or no_image_cast or too_old_char  # or too_old_person
+
     def load_from_tvinfo(self, cache=True, tvapi=None, tvinfo_data=None, scheduled_update=False, switch=False):
         # type: (bool, bool, TVInfoShow, bool, bool) -> Optional[Union[bool, TVInfoShow]]
         """
@@ -2773,6 +2833,10 @@ class TVShow(TVShowBase):
             except (BaseException, Exception):
                 pass
 
+        # tmdb doesn't provide air time, try to get it from other source
+        if TVINFO_TMDB == self._tvid and None is show_info.time:
+            show_info.time, show_info.airs_time, show_info.airs_dayofweek = self._get_airtime()
+
         if None is not getattr(show_info, 'airs_dayofweek', None) and None is not getattr(show_info, 'airs_time', None):
             self.airs = ('%s %s' % (show_info['airs_dayofweek'], show_info['airs_time'])).strip()
 
@@ -2790,9 +2854,11 @@ class TVShow(TVShowBase):
             _, self.timezone = network_timezones.get_network_timezone(self.internal_network, return_name=True)
         self.airtime = self._make_airtime(show_info.time)
 
-        if show_info.cast:
+        if show_info.cast and self._should_cast_update(show_info.cast):
             sickbeard.people_queue_scheduler.action.add_cast_update(show_obj=self, show_info_cast=show_info.cast,
                                                                     scheduled_update=scheduled_update, switch=switch)
+        else:
+            logger.log('Not updating cast for show because data is unchanged.')
         return show_info
 
     @staticmethod
@@ -2829,17 +2895,19 @@ class TVShow(TVShowBase):
                 return
             show_info_cast = show_info.cast
 
-        self._load_cast_from_db()
-        remove_char_ids = {c.id for c in self._cast_list or []}
-        cast_ordered = []
+        cast_list = self._load_cast_from_db()
+        remove_char_ids = {c.id for c in cast_list or []}
+        cast_ordered = weakList()
         for ct, c_l in iteritems(show_info_cast):  # type: (integer_types, List[TVINFO_Character])
+            if ct not in (RoleTypes.ActorMain, RoleTypes.Host, RoleTypes.Interviewer, RoleTypes.Presenter):
+                continue
             for c in c_l:
                 if stop_event and stop_event.is_set():
                     return
 
                 unique_name = 1 == len([cu for cu in c_l if (None is not c.id and cu.id == c.id)
                                         or cu.name == c.name])
-                mc = next((cl for cl in self._cast_list or []
+                mc = next((cl for cl in cast_list or []
                            if (None is not c.id and cl.ids.get(self.tvid) == c.id)
                            or (unique_name and c.name and cl.name == c.name)
                            or any(cl.ids.get(src) == c.ids.get(src) for src in c.ids or {})),
@@ -2850,7 +2918,7 @@ class TVShow(TVShowBase):
                                                      if any(_p.name == _pp.name for _pp in c.person)]).values()
                                             if 1 != _cp)
                     if unique_person:
-                        pc = [cl for cl in self._cast_list or [] if cl.person
+                        pc = [cl for cl in cast_list or [] if cl.person
                               and any(1 for p in cl.person if c.person
                                       and ((None is not p.ids.get(self.tvid) and any(p.ids.get(self.tvid) == cp.id
                                                                                      for cp in c.person))
@@ -2909,7 +2977,7 @@ class TVShow(TVShowBase):
                 else:
                     persons = []
                     for s_pers in c.person:
-                        existing_person = next((_p for _c in self._cast_list for _p in _c.person
+                        existing_person = next((_p for _c in cast_list for _p in _c.person
                                                 if (s_pers.id and _p.ids.get(self.tvid) == s_pers.id)
                                                 or (not s_pers.id and s_pers.name == _p.name)),
                                                None)  # type: Optional[Person]
@@ -2938,15 +3006,16 @@ class TVShow(TVShowBase):
                             persons.append(new_person)
                     mc = Character(c.name, ids=({}, {self.tvid: c.id})[None is not c.id], image_url=c.image,
                                    person=persons, show_obj=self, thumb_url=c.thumb_url)
-                    self._cast_list.append(mc)
+                    cast_list.append(mc)
                 cast_ordered.append(mc)
 
         if stop_event and stop_event.is_set():
             return
         if remove_char_ids:
-            [c.remove_all_img(include_person=True) for c in self._cast_list or [] if c.id in remove_char_ids]
-        self._cast_list = cast_ordered
-        self._save_cast_list(force=force, removed_char_ids=remove_char_ids, stop_event=stop_event)
+            [c.remove_all_img(include_person=True) for c in cast_list or [] if c.id in remove_char_ids]
+        self.cast_list = cast_ordered
+        self._save_cast_list(force=force, removed_char_ids=remove_char_ids, stop_event=stop_event,
+                             cast_list=cast_ordered)
 
     def load_imdb_info(self):
 
@@ -3384,7 +3453,7 @@ class TVShow(TVShowBase):
         try:
             img_obj = image_cache.ImageCache()
             delete_list = []
-            for character in self._cast_list:
+            for character in self.cast_list:
                 for p in character.person:
                     person_img = img_obj.person_both_paths(p)
                     for i in person_img:
@@ -3442,7 +3511,7 @@ class TVShow(TVShowBase):
                                 [self.tvid, self.prodid, old_tvid, old_prodid])
             del_mapping(old_tvid, old_prodid)
             try:
-                for c in self._cast_list:  # type: Character
+                for c in self.cast_list:  # type: Character
                     c.remove_all_img(tvid=old_tvid, proid=old_prodid)
             except (BaseException, Exception):
                 pass
@@ -4584,7 +4653,7 @@ class TVEpisode(TVEpisodeBase):
     def delete_episode(self, return_sql=False):
         # type: (bool) -> Optional[List[List]]
         """
-        deletes epsiode from db, alternatively returns sql to remove episode from db
+        deletes episode from db, alternatively returns sql to remove episode from db
 
         :param return_sql: only return sql to delete episode
         """

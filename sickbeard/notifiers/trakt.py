@@ -26,6 +26,10 @@ from exceptions_helper import ConnectionSkipException
 from _23 import list_keys
 from six import iteritems
 
+# noinspection PyUnreachableCode
+if False:
+    from typing import Dict
+
 
 class TraktNotifier(BaseNotifier):
     """
@@ -61,8 +65,8 @@ class TraktNotifier(BaseNotifier):
                 TVINFO_TRAKT
 
             supported_indexer = {TVINFO_TRAKT: 'trakt', TVINFO_TVDB: 'tvdb', TVINFO_TVRAGE: 'tvrage',
-                                 TVINFO_IMDB: 'imdb', TVINFO_TMDB: 'tmdb'}
-            indexer_priorities = [TVINFO_TRAKT, TVINFO_TVDB, TVINFO_TVRAGE, TVINFO_IMDB, TVINFO_TMDB]
+                                 TVINFO_IMDB: 'imdb', TVINFO_TMDB: 'tmdb'}  # type: Dict
+            indexer_priorities = [TVINFO_TRAKT, TVINFO_TMDB, TVINFO_TVDB, TVINFO_TVRAGE, TVINFO_IMDB]
 
             tvid = prodid = None
             if ep_obj.show_obj.tvid in supported_indexer:

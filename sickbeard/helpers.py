@@ -32,11 +32,6 @@ import time
 import uuid
 import sys
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
 import sickbeard
 from . import db, logger, notifiers
 from .common import cpu_presets, mediaExtensions, Overview, Quality, statusStrings, subtitleExtensions, \
@@ -62,7 +57,7 @@ from six.moves import zip
 # therefore, they intentionally don't resolve and are unused in this particular file.
 # noinspection PyUnresolvedReferences
 from sg_helpers import chmod_as_parent, clean_data, copy_file, download_file, fix_set_group_id, get_system_temp_dir, \
-    get_url, indent_xml, make_dirs, maybe_plural, md5_for_text, move_file, proxy_setting, remove_file, \
+    get_url, indent_xml, make_path, maybe_plural, md5_for_text, move_file, proxy_setting, remove_file, \
     remove_file_perm, replace_extension, sanitize_filename, scantree, touch_file, try_int, try_ord, write_file
 
 # noinspection PyUnreachableCode
@@ -492,7 +487,7 @@ def rename_ep_file(cur_path, new_path, old_path_length=0):
     # put the extension on the incoming file
     new_path += cur_file_ext
 
-    make_dirs(ek.ek(os.path.dirname, new_path), syno=True)
+    make_path(ek.ek(os.path.dirname, new_path), syno=True)
 
     # move the file
     try:

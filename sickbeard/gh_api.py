@@ -15,10 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 
 from . import helpers
 

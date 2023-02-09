@@ -44,7 +44,7 @@ param3 = Client set downloaded item category or label (e.g. "%L")
 param4 = Client set downloaded item content path (e.g. "%F", "%D\%F" etc)
 
 Token values for params 3 and 4 are found documented in the download client or
-at the client webiste. Other clients may be able to replace param3 and param4
+at the client website. Other clients may be able to replace param3 and param4
 to fit (see examples).
 
 
@@ -217,7 +217,7 @@ rem Replace any double slashes in path with single slash
 SET "sg_path=!sg_path:\\=\!"
 SET "content_path=!content_path:\\=\!"
 
-rem Remove long path switch for most compatiblity, newer OSes may omit this
+rem Remove long path switch for most compatibility, newer OSes may omit this
 IF "\?\" == "!sg_path:~0,3!" SET "sg_path=!sg_path:~3!"
 IF "\?\" == "!content_path:~0,3!" SET "content_path=!content_path:~3!"
 

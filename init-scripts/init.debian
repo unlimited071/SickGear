@@ -28,7 +28,7 @@ fi
 
 ## Don't set -e
 ## Don't edit this file!
-## Edit user configuation in /etc/default/sickgear to change
+## Edit user configuration in /etc/default/sickgear to change
 ##
 ## SG_USER=         #$RUN_AS, username to run sickgear under, the default is sickgear
 ## SG_GROUP=        #$RUN_GROUP, group to run sickgear under, the default is sickgear

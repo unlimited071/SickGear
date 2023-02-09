@@ -20,10 +20,6 @@ from __future__ import with_statement
 
 from functools import partial
 import datetime
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import os
 import re
 import shutil
@@ -34,6 +30,7 @@ import sys
 import encodingKludge as ek
 import exceptions_helper
 from exceptions_helper import ex, MultipleShowObjectsException
+from json_helper import json_dumps, json_loads
 
 import sickbeard
 from . import common, db, failedProcessor, helpers, logger, notifiers, postProcessor
@@ -571,7 +568,7 @@ class ProcessTVShow(object):
             if not archive_history:
                 try:
                     with open(archive_history_file, 'r') as fh:
-                        archive_history = json.loads(fh.read(10 * 1024 * 1024))
+                        archive_history = json_loads(fh.read(10 * 1024 * 1024))
                 except (IOError, ValueError, Exception):
                     pass
 
@@ -588,7 +585,7 @@ class ProcessTVShow(object):
             if init_history_cnt != len(archive_history):
                 try:
                     with open(archive_history_file, 'w') as fh:
-                        fh.write(json.dumps(archive_history))
+                        fh.write(json_dumps(archive_history))
                 except (IOError, Exception):
                     pass
 

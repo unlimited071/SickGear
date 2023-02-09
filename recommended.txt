@@ -8,6 +8,8 @@ cryptography <= 3.3.2; '3.7' <= python_version and 'Darwin' == platform_system a
 cryptography <= 3.3.2; '3.0' > python_version
 lxml >= 4.9.2; 'Windows' == platform_system
 lxml; 'Windows' != platform_system
+orjson; '3.7' <= python_version and 'Windows' == platform_system
+orjson; '3.7' <= python_version and 'Linux' == platform_system and ('x86_64' == platform_machine or 'aarch64' == platform_machine or 'armv7l' == platform_machine)
 pip >= 22.2.2; '3.7' <= python_version
 pip <= 20.3.4; '3.0' > python_version
 Levenshtein >= 0.20.5; '3.11' >= python_version and '3.7' <= python_version

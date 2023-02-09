@@ -16,10 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import socket
 import time
 
@@ -27,6 +23,7 @@ from .generic import Notifier
 import sickbeard
 from exceptions_helper import ex
 from encodingKludge import fixStupidEncodings
+from json_helper import json_dumps, json_load
 
 from _23 import b64encodestring, decode_str, etree, quote, unquote, unquote_plus, urlencode
 from six import PY2, text_type
@@ -320,7 +317,7 @@ class XBMCNotifier(Notifier):
 
             # parse the json result
             try:
-                result = json.load(http_response_obj)
+                result = json_load(http_response_obj)
                 http_response_obj.close()
                 self._log_debug(u'JSON response: ' + str(result))
                 return result  # need to return response for parsing
@@ -396,7 +393,7 @@ class XBMCNotifier(Notifier):
 
             self._log_debug(u'Updating ' + show_name + ' on ' + host + ' at ' + path)
             update_command = '{"jsonrpc":"2.0","method":"VideoLibrary.Scan","params":{"directory":%s},"id":1}' % (
-                json.dumps(path))
+                json_dumps(path))
             request = self._send_to_xbmc_json(update_command, host)
             if not request:
                 self._log_error(u'Update of show directory failed on ' + show_name + ' on ' + host + ' at ' + path)

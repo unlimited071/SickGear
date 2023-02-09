@@ -395,12 +395,19 @@ class NameParser(object):
                     for epNo in episode_numbers:
                         s = season_number
                         e = epNo
+                        ep_nums = [(s, e)]
 
                         if self.convert and show_obj.is_scene:
-                            (s, e) = scene_numbering.get_indexer_numbering(
-                                show_obj.tvid, show_obj.prodid, season_number, epNo)
-                        new_episode_numbers.append(e)
-                        new_season_numbers.append(s)
+                            ep_nums = scene_numbering.get_indexer_numbering(
+                                show_obj.tvid, show_obj.prodid, season_number, epNo, return_multiple=True)
+                            if not isinstance(ep_nums, list) and isinstance(ep_nums, tuple):
+                                ep_nums = [ep_nums]
+
+                        for s, e in ep_nums:
+                            if e not in new_episode_numbers:
+                                new_episode_numbers.append(e)
+                            if s not in new_season_numbers:
+                                new_season_numbers.append(s)
 
                 elif show_obj.is_anime and len(best_result.ab_episode_numbers) and not self.testing:
                     scene_season = scene_exceptions.get_scene_exception_by_name(best_result.series_name)[2]
@@ -421,17 +428,23 @@ class NameParser(object):
                     for epNo in best_result.episode_numbers:
                         s = best_result.season_number
                         e = epNo
+                        ep_nums = [(s, e)]
 
                         if self.convert and show_obj.is_scene:
-                            (s, e) = scene_numbering.get_indexer_numbering(
-                                show_obj.tvid, show_obj.prodid, best_result.season_number, epNo)
-                        if show_obj.is_anime:
-                            a = helpers.get_absolute_number_from_season_and_episode(show_obj, s, e)
-                            if a:
-                                new_absolute_numbers.append(a)
+                            ep_nums = scene_numbering.get_indexer_numbering(
+                                show_obj.tvid, show_obj.prodid, best_result.season_number, epNo, return_multiple=True)
+                            if not isinstance(ep_nums, list) and isinstance(ep_nums, tuple):
+                                ep_nums = [ep_nums]
+                        for s, e in ep_nums:
+                            if show_obj.is_anime:
+                                a = helpers.get_absolute_number_from_season_and_episode(show_obj, s, e)
+                                if a:
+                                    new_absolute_numbers.append(a)
 
-                        new_episode_numbers.append(e)
-                        new_season_numbers.append(s)
+                            if e not in new_episode_numbers:
+                                new_episode_numbers.append(e)
+                            if s not in new_season_numbers:
+                                new_season_numbers.append(s)
 
                 # need to do a quick sanity check here.  It's possible that we now have episodes
                 # from more than one season (by tvdb numbering), and this is just too much, so flag it.

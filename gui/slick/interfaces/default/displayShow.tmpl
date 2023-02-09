@@ -54,11 +54,23 @@
 <script type="text/javascript" src="$sbRoot/js/ajaxEpSubtitles.js?v=$sbPID"></script>
 <script type="text/javascript" src="$sbRoot/js/lib/jquery.bookmarkscroll.js?v=$sbPID"></script>
 <script type="text/javascript" src="$sbRoot/js/lib/jquery.collapser.min.js?v=$sbPID"></script>
+<script src="$sbRoot/js/lib/select2.full.min.js"></script>
 
+<link href="$sbRoot/css/lib/select2.css" rel="stylesheet">
 <style>
 .bfr{position:absolute;left:-999px;top:-999px}.bfr img,.spinner,.spinner2,img.queued,img.search,img.success,img.upgrade{display:inline-block;width:16px;height:16px}.spinner{background:url(${sbRoot}/images/loading16${theme_suffix}.gif) no-repeat 0 0}.spinner2{background:url(${sbRoot}/images/loading16-red.gif) no-repeat 0 0}img.queued{background:url(${sbRoot}/images/queued.png) no-repeat 0 0}img.search{background:url(${sbRoot}/images/search16.png) no-repeat 0 0}img.success{background:url(${sbRoot}/images/down-success.png) no-repeat 0 0}img.upgrade{background:url(${sbRoot}/images/down-upgrade.png) no-repeat 0 0}
 .images i{margin-right:6px;margin-top:5px}.hide{display:none}
 .tvshowImg{border:1px solid transparent;min-width:226px;min-hieght:332px}.spinner2{margin-top:3px !important}
+.select2-results__group{color: #eee; background-color: rgb(51,51,51)}
+.select2-results__options .select2-results__option{color: #222; background-color: #ddd}
+.select2-results__options .select2-results__option .ended{color: #888}
+#select2-pickShow-results .select2-results__option .ended .label{background-color: #888; padding: 1px 4px; margin-right: 2px; line-height: 2; color: #ddd !important}
+.select2-container--default .select2-results > .select2-results__options{max-height: 300px}
+#select2-pickShow-results .select2-results__option,
+#select2-pickShow-results .select2-results__group{padding-top: 2px !important; padding-bottom:2px !important}
+#select2-pickShow-results .select2-results__option--highlighted.select2-results__option--selectable .ended{color:white}
+#select2-pickShow-results .select2-results__option--selected,
+#select2-pickShow-results .select2-results__option--selected span{color:rgb(143, 21, 21) !important}
 </style>
 <div class="bfr"><img src="$sbRoot/images/loading16${theme_suffix}.gif"><img src="$sbRoot/images/loading16-red.gif"><img src="$sbRoot/images/queued.png"><img src="$sbRoot/images/search16.png"><img src="$sbRoot/images/no16.png"><img src="$sbRoot/images/yes16.png"><img src="$sbRoot/images/down-success.png"><img src="$sbRoot/images/down-upgrade.png"></div>
 
@@ -340,7 +352,8 @@
 #set $has_overview = '' != $show_obj.overview
 #set $ep_tally = ('', '(<span class="hint">%s episodes</span>)' % $ep_counts['eps_all'])[0 < $ep_counts['eps_all']]
 					<div class="#echo ('no', 'details')[$has_overview]#-plot">
-#if $show_obj.cast_list
+#set $cast_list = $show_obj.cast_list
+#if $cast_list
 <%
 def param(visible=True, rid=None, cache_person=None, cache_char=None, person=None, role=None, tvid_prodid=None, thumb=None, oid=None, pid=None):
     """
@@ -358,7 +371,7 @@ def param(visible=True, rid=None, cache_person=None, cache_char=None, person=Non
     return 'param not implemented properly'
 %>
     #set $cast = {'1st': [], '2nd': []}
-    #for $cur_cast in $show_obj.cast_list
+    #for $cur_cast in $cast_list
         #set $cast[('1st', '2nd')[not $cur_cast.name]] += [$cur_cast]
     #end for
 						<div class="contain-glide">

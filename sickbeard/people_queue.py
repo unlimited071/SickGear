@@ -89,7 +89,7 @@ class PeopleQueue(generic_queue.GenericQueue):
         data = {'main_cast': []}
         with self.lock:
             for cur_item in [self.currentItem] + self.queue:  # type: PeopleQueueItem
-                if not cur_item:
+                if not cur_item or not cur_item.show_obj:
                     continue
                 result_item = {'name': cur_item.show_obj.name, 'tvid_prodid': cur_item.show_obj.tvid_prodid,
                                'uid': cur_item.uid, 'forced': cur_item.force}
@@ -166,6 +166,10 @@ class PeopleQueueItem(generic_queue.QueueItem):
         self.show_obj = show_obj  # type: TVShow
         self.force = force  # type: bool
 
+    def finish(self):
+        self.show_obj = None
+        super(PeopleQueueItem, self).finish()
+
 
 class CastQueueItem(PeopleQueueItem):
     def __init__(self, show_obj, show_info_cast=None, uid=None, force=False, scheduled_update=False, switch=False,
@@ -209,6 +213,10 @@ class CastQueueItem(PeopleQueueItem):
                 ui.notifications.message('Finished cast update for show %s' % self.show_obj.unique_name)
 
         self.finish()
+
+    def finish(self):
+        self.show_info_cast = None
+        super(CastQueueItem, self).finish()
 
     def __str__(self):
         return '<Cast Queue Item (%s)%s>' % (self.show_obj.unique_name, ('', ' - forced')[self.force])

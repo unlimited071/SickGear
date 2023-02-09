@@ -109,7 +109,7 @@ def blackhole():
         nzbName = os.getenv('TR_TORRENT_NAME')
     else:
         if 2 > len(sys.argv):
-            scriptlogger.error('No folder supplied - Your client should invoke the script with a Dir and a Relese Name')
+            scriptlogger.error('No folder supplied - Your client should invoke the script with a Dir and a Release Name')
             print('No folder supplied - Your client should invoke the script with a Dir and a Release Name')
             time.sleep(3)
             sys.exit()

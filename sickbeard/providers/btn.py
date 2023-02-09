@@ -17,10 +17,6 @@
 
 from __future__ import division
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import math
 import random
 import re
@@ -34,6 +30,7 @@ from ..indexers.indexer_config import TVINFO_TVDB
 from ..show_name_helpers import get_show_names
 from bs4_parser import BS4Parser
 from exceptions_helper import AuthException
+from json_helper import json_dumps
 
 from _23 import unidecode
 from six import iteritems
@@ -105,7 +102,7 @@ class BTNProvider(generic.TorrentProvider):
                 json_rpc = (lambda param_dct, items_per_page=1000, offset=0:
                             '{"jsonrpc": "2.0", "id": "%s", "method": "getTorrents", "params": ["%s", %s, %s, %s]}' %
                             (''.join(random.sample('abcdefghijklmnopqrstuvwxyz0123456789', 8)),
-                             self.api_key, json.dumps(param_dct), items_per_page, offset))
+                             self.api_key, json_dumps(param_dct), items_per_page, offset))
 
                 response, error_text = None, None
                 try:

@@ -9,7 +9,7 @@ sys.path.insert(1, os.path.abspath('..'))
 sys.path.insert(1, os.path.abspath('../lib'))
 
 import sickbeard
-from sickbeard import name_cache, tv
+from sickbeard import db, name_cache, tv
 from sickbeard.classes import OrderedDefaultdict
 from sickbeard.name_parser import parser
 
@@ -438,6 +438,86 @@ ep_name_test = [
 ]
 
 
+scene_numbering_test = [
+    {'tests': [
+        {'parse_name': 'Show.Name.S01E01.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 1, [1, 2, 3], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S01E02.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 1, [4, 5, 6], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S01E07.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 1, [7], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S02E01.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 2, [1, 2, 3], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S02E04.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 2, [4], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S03E01.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 3, [5], '720p.Groupname')},
+        {'parse_name': 'Show.Name.S03E02.720p.Groupname',
+         'parse_result': parser.ParseResult(None, 'Show Name', 3, [6], '720p.Groupname')},
+    ],
+     'show_obj': {'name': 'Show Name', 'prodid': 2, 'tvid': 1,
+                  'episodes': [
+                      {'season': 1, 'number': 1, 'name': 'Ep 1', 'scene_season': 1, 'scene_episode': 1},
+                      {'season': 1, 'number': 2, 'name': 'Ep 2', 'scene_season': 1, 'scene_episode': 1},
+                      {'season': 1, 'number': 3, 'name': 'Ep 3', 'scene_season': 1, 'scene_episode': 1},
+                      {'season': 1, 'number': 4, 'name': 'Ep 4', 'scene_season': 1, 'scene_episode': 2},
+                      {'season': 1, 'number': 5, 'name': 'Ep 5', 'scene_season': 1, 'scene_episode': 2},
+                      {'season': 1, 'number': 6, 'name': 'Ep 6', 'scene_season': 1, 'scene_episode': 2},
+                      {'season': 2, 'number': 1, 'name': 'Ep 1', 'xem_season': 2, 'xem_episode': 1},
+                      {'season': 2, 'number': 2, 'name': 'Ep 2', 'xem_season': 2, 'xem_episode': 1},
+                      {'season': 2, 'number': 3, 'name': 'Ep 3', 'xem_season': 2, 'xem_episode': 1},
+                      {'season': 3, 'number': 5, 'name': 'Ep 3', 'xem_season': 3, 'xem_episode': 1},
+                      {'season': 3, 'number': 6, 'name': 'Ep 3', 'scene_season': 3, 'scene_episode': 2},
+                  ]}
+     }
+]
+
+
+class MultiSceneNumbering(test.SickbeardTestDBCase):
+    def test_multi_ep_numbering(self):
+        for e_t in scene_numbering_test:
+            sickbeard.showList = []
+            sickbeard.showDict = {}
+            name_cache.nameCache = {}
+            c_l = []
+            for s in [TVShowTest(name=e_t['show_obj']['name'], prodid=e_t['show_obj']['prodid'],
+                                 tvid=e_t['show_obj']['tvid'], scene=1)]:
+                sickbeard.showList.append(s)
+                sickbeard.showDict[s.sid_int] = s
+                for _i, e_o in enumerate(e_t['show_obj']['episodes']):
+                    e_obj = TVEpisodeTest(e_o['name'])
+                    e_obj.season = e_o['season']
+                    e_obj.episode = e_o['number']
+                    e_obj.scene_episode = e_o.get('scene_season') or e_o.get('xem_season')
+                    e_obj.scene_season = e_o.get('scene_episode') or e_o.get('xem_episode')
+                    s.sxe_ep_obj.setdefault(e_obj.season, {})[e_obj.episode] = e_obj
+                    if 'xem_episode' not in e_o:
+                        c_l.append(['REPLACE INTO scene_numbering'
+                                    ' (indexer, indexer_id, season, episode, scene_season, scene_episode)'
+                                    ' VALUES (?,?,?,?,?,?)',
+                                    [e_t['show_obj']['tvid'], e_t['show_obj']['prodid'], e_o['season'], e_o['number'],
+                                     e_o['scene_season'], e_o['scene_episode']]])
+                    else:
+                        c_l.append(
+                            ['REPLACE INTO tv_episodes'
+                             ' (episode_id, showid, indexerid, indexer, name, season, episode, scene_season,'
+                             ' scene_episode)'
+                             ' VALUES (?,?,?,?,?,?,?,?,?)',
+                             [_i, e_t['show_obj']['prodid'], _i, e_t['show_obj']['tvid'], 'Ep Name',
+                              e_o['season'], e_o['number'], e_o['xem_season'], e_o['xem_episode']]]
+                        )
+            my_db = db.DBConnection()
+            my_db.mass_action(c_l)
+            name_cache.addNameToCache(e_t['show_obj']['name'], tvid=e_t['show_obj']['tvid'],
+                                      prodid=e_t['show_obj']['prodid'])
+            for _t in e_t['tests']:
+                try:
+                    res = parser.NameParser(True, convert=True).parse(_t['parse_name'])
+                except (BaseException, Exception) as e:
+                    res = None
+                self.assertEqual(_t['parse_result'], res)
+
+
 class EpisodeNameCases(unittest.TestCase):
     def test_ep_numbering(self):
         for e_t in ep_name_test:
@@ -766,10 +846,11 @@ class BasicTests(unittest.TestCase):
 
 class TVShowTest(tv.TVShow):
     # noinspection PyMissingConstructor
-    def __init__(self, is_anime=False, name='', prodid=1, tvid=1, year=1990):
+    def __init__(self, is_anime=False, name='', prodid=1, tvid=1, year=1990, scene=0):
         self._anime = is_anime
         self._name = name
         self._startyear = year
+        self._scene = scene
         self.unique_name = name
         self.tvid = tvid
         self.prodid = prodid
@@ -909,4 +990,7 @@ if '__main__' == __name__:
     unittest.TextTestRunner(verbosity=2).run(suite)
 
     suite = unittest.TestLoader().loadTestsFromTestCase(EpisodeNameCases)
+    unittest.TextTestRunner(verbosity=2).run(suite)
+
+    suite = unittest.TestLoader().loadTestsFromTestCase(MultiSceneNumbering)
     unittest.TextTestRunner(verbosity=2).run(suite)

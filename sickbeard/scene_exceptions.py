@@ -30,10 +30,10 @@ import sickbeard
 # noinspection PyPep8Naming
 import encodingKludge as ek
 from exceptions_helper import ex
+from json_helper import json_load
 from . import db, helpers, logger, name_cache
 from .anime import create_anidb_obj
 from .classes import OrderedDefaultdict
-from .helpers import json
 from .indexers.indexer_config import TVINFO_TVDB
 from .sgdatetime import timestamp_near
 
@@ -399,7 +399,7 @@ def _custom_exceptions_fetcher():
     if fetch_data:
         if ek.ek(os.path.exists, tmppath):
             helpers.remove_file(tmppath, tree=True)
-        helpers.make_dirs(tmppath)
+        helpers.make_path(tmppath)
         helpers.download_file(r'https://github.com/SickGear/sickgear.altdata/raw/master/alt.rar', file_rar)
 
         rar_handle = None
@@ -427,7 +427,7 @@ def _custom_exceptions_fetcher():
     data = {}
     try:
         with io.open(file_cache) as fh:
-            data = json.load(fh)
+            data = json_load(fh)
     except(BaseException, Exception) as e:
         logger.log(u'Failed to unpack json data: %s with error: %s' % (file_rar, ex(e)), logger.ERROR)
 

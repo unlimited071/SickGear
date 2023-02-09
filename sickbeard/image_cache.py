@@ -31,7 +31,7 @@ import sg_helpers
 from . import db, logger
 from .metadata.generic import GenericMetadata
 from .sgdatetime import timestamp_near
-from .indexers.indexer_config import TVINFO_TVDB, TVINFO_TVMAZE, TVINFO_TMDB
+from .indexers.indexer_config import TVINFO_TVDB, TVINFO_TVMAZE, TVINFO_TMDB, TVINFO_IMDB
 from lib.tvinfo_base.exceptions import *
 
 from six import itervalues, iteritems
@@ -47,7 +47,8 @@ from lib.hachoir.parser import createParser, guessParser
 from lib.hachoir.metadata import extractMetadata
 from lib.hachoir.stream import StringInputStream
 
-cache_img_base = {'tvmaze': TVINFO_TVMAZE, 'themoviedb': TVINFO_TMDB, 'thetvdb': TVINFO_TVDB}
+cache_img_base = {'tvmaze': TVINFO_TVMAZE, 'themoviedb': TVINFO_TMDB, 'thetvdb': TVINFO_TVDB, 'imdb': TVINFO_IMDB}
+cache_img_src = {TVINFO_TMDB: 'tmdb', TVINFO_TVDB: 'tvdb', TVINFO_TVMAZE: 'tvmaze', TVINFO_IMDB: 'imdb'}
 
 
 class ImageCache(object):
@@ -117,12 +118,14 @@ class ImageCache(object):
         # type: (Person) -> AnyStr
         base_id = next((v for k, v in iteritems(cache_img_base)
                         if k in (person_obj.image_url or '') or person_obj.thumb_url), 0)
-        return '%s-%s' % (base_id, person_obj.ids.get(base_id) or sg_helpers.sanitize_filename(person_obj.name))
+        return '%s-%s' % (cache_img_src.get(base_id, base_id), person_obj.ids.get(base_id)
+                          or sg_helpers.sanitize_filename(person_obj.name))
 
     @staticmethod
     def _character_base_name(character_obj, show_obj, tvid=None, proid=None):
         # type: (Character, TVShow, integer_types, integer_types) -> AnyStr
-        return '%s-%s' % (tvid or show_obj.tvid, character_obj.ids.get(tvid or show_obj.tvid)
+        return '%s-%s' % (cache_img_src.get(tvid or show_obj.tvid, tvid or show_obj.tvid),
+                          character_obj.ids.get(tvid or show_obj.tvid)
                           or sg_helpers.sanitize_filename(character_obj.name))
 
     def person_path(self, person_obj, base_path=None):
@@ -528,7 +531,7 @@ class ImageCache(object):
             return False
 
         for cache_dir in [self.shows_dir, self._thumbnails_dir(*id_args)] + fanart_dir:
-            sg_helpers.make_dirs(cache_dir)
+            sg_helpers.make_path(cache_dir)
 
         logger.log(u'%sing from %s to %s' % (('Copy', 'Mov')[move_file], image_path, dest_path))
         # copy poster, banner as thumb, even if moved we need to duplicate the images

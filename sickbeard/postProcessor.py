@@ -1159,7 +1159,7 @@ class PostProcessor(object):
         self._log(u'Destination folder for this episode is ' + dest_path, logger.DEBUG)
 
         # create any folders we need
-        if not helpers.make_dirs(dest_path, syno=True):
+        if not helpers.make_path(dest_path, syno=True):
             raise exceptions_helper.PostProcessingFailed(u'Unable to create destination folder: ' + dest_path)
 
         # figure out the base name of the resulting episode file

@@ -814,7 +814,7 @@ def init_stage_1(console_logging):
     if CACHE_DIR:
         helpers.clear_cache()
         ZONEINFO_DIR = ek.ek(os.path.join, CACHE_DIR, 'zoneinfo')
-        if not ek.ek(os.path.isdir, ZONEINFO_DIR) and not helpers.make_dirs(ZONEINFO_DIR):
+        if not ek.ek(os.path.isdir, ZONEINFO_DIR) and not helpers.make_path(ZONEINFO_DIR):
             logger.log(u'!!! Creating local zoneinfo dir failed', logger.ERROR)
     sg_helpers.CACHE_DIR = CACHE_DIR
     sg_helpers.DATA_DIR = DATA_DIR

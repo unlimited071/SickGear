@@ -38,7 +38,8 @@ from _23 import filter_iter, map_list
 
 # noinspection PyUnreachableCode
 if False:
-    from typing import Dict, Tuple
+    from typing import Dict, List, Optional, Tuple, Union
+    from six import integer_types
 
 
 def get_scene_numbering(tvid, prodid, season, episode, fallback_to_xem=True, show_obj=None, **kwargs):
@@ -229,7 +230,8 @@ def find_scene_absolute_numbering(tvid, prodid, absolute_number, season=None, ep
         return try_int(sql_result[0]['scene_absolute_number'], None)
 
 
-def get_indexer_numbering(tvid, prodid, scene_season, scene_episode, fallback_to_xem=True):
+def get_indexer_numbering(tvid, prodid, scene_season, scene_episode, fallback_to_xem=True, return_multiple=False):
+    # type: (int, integer_types, int, int, bool, bool) -> Union[Tuple[Optional[int], Optional[int]], List[Tuple[Optional[int], Optional[int]]]]
     """
 
     :param tvid: tvid
@@ -242,6 +244,7 @@ def get_indexer_numbering(tvid, prodid, scene_season, scene_episode, fallback_to
     :type scene_episode: int
     :param fallback_to_xem:
     :type fallback_to_xem: bool
+    :param return_multiple:
     :return: a tuple, (season, episode) with the TVDB numbering for (sceneSeason, sceneEpisode)
     (this works like the reverse of get_scene_numbering)
     :rtype: Tuple[int, int]
@@ -260,11 +263,13 @@ def get_indexer_numbering(tvid, prodid, scene_season, scene_episode, fallback_to
         """, [tvid, prodid, scene_season, scene_episode])
 
     if sql_result:
+        if return_multiple and 1 < len(sql_result):
+            return [(try_int(_s['season'], None), try_int(_s['episode'], None)) for _s in sql_result]
         ss, se = try_int(sql_result[0]['season'], None), try_int(sql_result[0]['episode'], None)
         if None is not ss and None is not se:
             return ss, se
     if fallback_to_xem:
-        return get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode)
+        return get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode, return_multiple=return_multiple)
     return scene_season, scene_episode
 
 
@@ -489,7 +494,8 @@ def find_xem_absolute_numbering(tvid, prodid, absolute_number, season, episode, 
         return try_int(sql_result[0]['scene_absolute_number'], None)
 
 
-def get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode):
+def get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode, return_multiple=False):
+    # type: (int, int, int, int, bool) -> Union[Tuple[Optional[int], Optional[int]], List[Tuple[Optional[int], Optional[int]]]]
     """
     Reverse of find_xem_numbering: lookup a tvdb season and episode using scene numbering
 
@@ -501,6 +507,7 @@ def get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode):
     :type scene_season: int
     :param scene_episode:
     :type scene_episode: int
+    :param return_multiple:
     :return:
     :rtype: (int, int) a tuple of (season, episode)
     """
@@ -518,6 +525,9 @@ def get_indexer_numbering_for_xem(tvid, prodid, scene_season, scene_episode):
         FROM tv_episodes
         WHERE indexer = ? AND showid = ? AND scene_season = ? AND scene_episode = ?
         """, [tvid, prodid, scene_season, scene_episode])
+
+    if return_multiple and 1 < len(sql_result or []):
+        return [(try_int(_s['season'], None), try_int(_s['episode'], None)) for _s in sql_result]
 
     for cur_row in (sql_result or []):
         ss, se = try_int(cur_row['season'], None), try_int(cur_row['episode'], None)

@@ -15,13 +15,10 @@
 # You should have received a copy of the GNU General Public License
 # along with SickGear.  If not, see <http://www.gnu.org/licenses/>.
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
 import re
 
 from exceptions_helper import ex, AuthException
+from json_helper import json_dumps
 
 from . import generic
 from .. import logger
@@ -109,7 +106,7 @@ class HDBitsProvider(generic.TorrentProvider):
                     post_data['search'] = search_param = search_param.replace('.', ' ')
                     id_search = False
 
-                post_data = json.dumps(post_data)
+                post_data = json_dumps(post_data)
                 search_url = self.urls['search']
 
                 json_resp = self.get_url(search_url, post_data=post_data, parse_json=True)

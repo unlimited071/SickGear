@@ -34,7 +34,7 @@ import sickbeard
 from . import logger, sgdatetime
 from .sgdatetime import timestamp_near
 
-from sg_helpers import make_dirs, compress_file, remove_file_perm, scantree
+from sg_helpers import make_path, compress_file, remove_file_perm, scantree
 
 from _23 import filter_iter, filter_list, list_values, scandir
 from six import iterkeys, iteritems, itervalues
@@ -125,7 +125,7 @@ class DBConnection(object):
     def backup_db(self, target, backup_filename=None):
         # type: (AnyStr, AnyStr) -> Tuple[bool, AnyStr]
         """
-        backups the db ot target dir + optional filename
+        backup the db to target dir + optional filename
 
         Availability: SQLite 3.6.11 or higher
         New in version 3.7
@@ -719,6 +719,7 @@ def MigrationCode(my_db):
         20012: sickbeard.mainDB.RenameAllowBlockListTables,
         20013: sickbeard.mainDB.AddHistoryHideColumn,
         20014: sickbeard.mainDB.ChangeShowData,
+        20015: sickbeard.mainDB.ChangeTmdbID,
         # 20002: sickbeard.mainDB.AddCoolSickGearFeature3,
     }
 
@@ -849,7 +850,7 @@ def backup_all_dbs(target, compress=True, prefer_7z=True):
     :param prefer_7z: prefer 7z compression if available
     :return: success, message
     """
-    if not make_dirs(target):
+    if not make_path(target):
         logger.log('Failed to create db backup dir', logger.ERROR)
         return False, 'Failed to create db backup dir'
     my_db = DBConnection('cache.db')

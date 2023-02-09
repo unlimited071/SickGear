@@ -102,7 +102,7 @@ class KODIMetadata(generic.GenericMetadata):
         self.eg_season_all_banner = 'season-all-banner.jpg'  # type: AnyStr
 
     def _show_data(self, show_obj):
-        # type: (sickbeard.tv.TVShow) -> Optional[Union[bool, etree.Element]]
+        # type: (sickbeard.tv.TVShow) -> Optional[Union[bool, AnyStr]]
         """
         Creates an elementTree XML structure for a Kodi-style tvshow.nfo and
         returns the resulting data object.
@@ -228,8 +228,8 @@ class KODIMetadata(generic.GenericMetadata):
     def write_show_file(self, show_obj):
         # type: (sickbeard.tv.TVShow) -> bool
         """
-        This method overides handles _show_data as a string
-        instead of default ElementTree.
+        This method overrides and handles _show_data as a string
+        instead of an ElementTree.
         """
         data = self._show_data(show_obj)
 
@@ -240,7 +240,33 @@ class KODIMetadata(generic.GenericMetadata):
 
         logger.log(u'Writing Kodi metadata file: %s' % nfo_file_path, logger.DEBUG)
 
+        data = '<?xml version="1.0" encoding="UTF-8"?>\n%s' % data
         return sg_helpers.write_file(nfo_file_path, data, utf8=True)
+
+    def write_ep_file(self, ep_obj):
+        # type: (sickbeard.tv.TVEpisode) -> bool
+        """
+        Generates and writes ep_obj's metadata under the given path with the
+        given filename root. Uses the episode's name with the extension in
+        _ep_nfo_extension.
+
+        ep_obj: TVEpisode object for which to create the metadata
+
+        file_name_path: The file name to use for this metadata. Note that the extension
+                will be automatically added based on _ep_nfo_extension. This should
+                include an absolute path.
+        """
+
+        data = self._ep_data(ep_obj)
+
+        if not data:
+            return False
+
+        nfo_file_path = self.get_episode_file_path(ep_obj)
+
+        logger.log(u'Writing episode metadata file: %s' % nfo_file_path, logger.DEBUG)
+
+        return sg_helpers.write_file(nfo_file_path, data, xmltree=True, xml_header=True, utf8=True)
 
     def _ep_data(self, ep_obj):
         # type: (sickbeard.tv.TVEpisode) -> Optional[etree.Element]
@@ -484,7 +510,7 @@ def remove_default_attr(*args, **kwargs):
 
                                 if changed:
                                     sg_helpers.indent_xml(root)
-                                    sg_helpers.write_file(nfo_path, xmltree, xmltree=True, utf8=True)
+                                    sg_helpers.write_file(nfo_path, xmltree, xmltree=True, xml_header=True, utf8=True)
                         except(BaseException, Exception):
                             pass
 
@@ -513,7 +539,7 @@ def remove_default_attr(*args, **kwargs):
 
                                 if changed:
                                     sg_helpers.indent_xml(xmltree.getroot())
-                                    sg_helpers.write_file(nfo_path, xmltree, xmltree=True, utf8=True)
+                                    sg_helpers.write_file(nfo_path, xmltree, xmltree=True, xml_header=True, utf8=True)
 
                             except(BaseException, Exception):
                                 pass

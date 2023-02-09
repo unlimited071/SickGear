@@ -12,10 +12,10 @@ if ek.EXIT_BAD_ENCODING:
 # Sanity check passed, can continue
 # #################################
 import io
-import json
 import os
 import re
 
+from json_helper import json_loads
 from sg_helpers import cmdline_runner
 
 from _23 import filter_list, ordered_dict
@@ -263,7 +263,7 @@ def _check_pip_env(pip_outdated=False, reset_fails=False):
         try:
             names_outdated = dict({cur_item.get('name'): {k: cur_item.get(k) for k in ('version', 'latest_version',
                                                                                        'latest_filetype')}
-                                   for cur_item in json.loads(output)})
+                                   for cur_item in json_loads(output)})
             to_update = set(filter_list(
                 lambda name: name in specifiers and names_outdated[name]['latest_version'] in specifiers[name],
                 set(names_reco).intersection(set(names_outdated))))

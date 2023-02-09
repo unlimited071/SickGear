@@ -17,11 +17,6 @@
 
 from __future__ import with_statement, division
 
-try:
-    import json
-except ImportError:
-    from lib import simplejson as json
-
 # noinspection PyProtectedMember
 from mimetypes import MimeTypes
 
@@ -44,8 +39,9 @@ from exceptions_helper import ex, MultipleShowObjectsException
 import exceptions_helper
 # noinspection PyPep8Naming
 import encodingKludge as ek
+from json_helper import json_dumps, json_loads
 import sg_helpers
-from sg_helpers import scantree
+from sg_helpers import remove_file, scantree
 
 import sickbeard
 from . import classes, clients, config, db, helpers, history, image_cache, logger, name_cache, naming, \
@@ -175,6 +171,11 @@ class BaseStaticFileHandler(StaticFileHandler):
                        logger.DEBUG)
             del kwargs['exc_info']
         return super(BaseStaticFileHandler, self).write_error(status_code, **kwargs)
+
+    def validate_absolute_path(self, root, absolute_path):
+        if '\\images\\flags\\' in absolute_path and not ek.ek(os.path.isfile, absolute_path):
+            absolute_path = re.sub(r'\\[^\\]+\.png$', '\\\\unknown.png', absolute_path)
+        return super(BaseStaticFileHandler, self).validate_absolute_path(root, absolute_path)
 
     def data_received(self, *args):
         pass
@@ -449,6 +450,10 @@ class CalendarHandler(BaseHandler):
 
 
 class RepoHandler(BaseStaticFileHandler):
+    kodi_include = None
+    kodi_exclude = None
+    kodi_legacy = None
+    kodi_is_legacy = None
 
     def parse_url_path(self, url_path):
         logger.log('Kodi req... get(path): %s' % url_path, logger.DEBUG)
@@ -459,19 +464,30 @@ class RepoHandler(BaseStaticFileHandler):
         self.set_header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
 
     def initialize(self, *args, **kwargs):
+        self.kodi_legacy = '-helix-leia'
+        self.kodi_exclude = '' if kwargs.get('legacy') else self.kodi_legacy
+        self.kodi_include = '' if not kwargs.pop('legacy', None) else self.kodi_legacy
+        self.kodi_is_legacy = bool(self.kodi_include)
+
         super(RepoHandler, self).initialize(*args, **kwargs)
 
         logger.log('Kodi req... initialize(path): %s' % kwargs['path'], logger.DEBUG)
         cache_client = ek.ek(os.path.join, sickbeard.CACHE_DIR, 'clients')
         cache_client_kodi = ek.ek(os.path.join, cache_client, 'kodi')
         cache_client_kodi_watchedstate = ek.ek(os.path.join, cache_client_kodi, 'service.sickgear.watchedstate.updater')
+
+        cache_resources = ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources')
+        cache_lang = ek.ek(os.path.join, cache_resources, 'language')
+        cache_other_lang = ek.ek(os.path.join, cache_lang, ('English', 'resource.language.en_gb')[self.kodi_is_legacy])
+        ek.ek(os.path.exists, cache_other_lang) and remove_file(cache_other_lang, tree=True)
+
+        cache_lang_sub = ek.ek(os.path.join, cache_lang, ('resource.language.en_gb', 'English')[self.kodi_is_legacy])
         for folder in (cache_client,
                        cache_client_kodi,
                        ek.ek(os.path.join, cache_client_kodi, 'repository.sickgear'),
                        cache_client_kodi_watchedstate,
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources'),
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'language'),
-                       ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'language', 'English'),
+                       ek.ek(os.path.join, cache_resources),
+                       cache_lang, cache_lang_sub,
                        ):
             if not ek.ek(os.path.exists, folder):
                 ek.ek(os.mkdir, folder)
@@ -482,15 +498,11 @@ class RepoHandler(BaseStaticFileHandler):
             fh.write(self.render_kodi_repository_sickgear_index())
         with io.open(ek.ek(os.path.join, cache_client_kodi_watchedstate, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_index())
-        with io.open(ek.ek(os.path.join, cache_client_kodi_watchedstate, 'resources', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_resources, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_index())
-        with io.open(ek.ek(
-                os.path.join,
-                cache_client_kodi_watchedstate, 'resources', 'language', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_lang, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_language_index())
-        with io.open(ek.ek(
-                os.path.join,
-                cache_client_kodi_watchedstate, 'resources', 'language', 'English', 'index.html'), 'w') as fh:
+        with io.open(ek.ek(os.path.join, cache_lang_sub, 'index.html'), 'w') as fh:
             fh.write(self.render_kodi_service_sickgear_watchedstate_updater_resources_language_english_index())
 
         '''
@@ -538,35 +550,48 @@ class RepoHandler(BaseStaticFileHandler):
             save_zip(aid, ver, cache_client_kodi_watchedstate,
                      self.kodi_service_sickgear_watchedstate_updater_zip)
 
+        wsu_path = 'service.sickgear.watchedstate.updater'
         for (src, dst) in (
                 (('repository.sickgear', 'icon.png'),
                  (cache_client_kodi, 'repository.sickgear', 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'icon.png'),
+                ((wsu_path, 'icon.png'),
                  (cache_client_kodi_watchedstate, 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'resources', 'settings.xml'),
-                 (cache_client_kodi_watchedstate, 'resources', 'settings.xml')),
-                (('service.sickgear.watchedstate.updater', 'icon.png'),
-                 (cache_client_kodi_watchedstate, 'resources', 'icon.png')),
-                (('service.sickgear.watchedstate.updater', 'resources', 'language', 'English', 'strings.xml'),
-                 (cache_client_kodi_watchedstate, 'resources', 'language', 'English', 'strings.xml')),
+                ((wsu_path, 'resources', 'settings%s.xml' % self.kodi_include),
+                 (cache_resources, 'settings%s.xml' % self.kodi_include.replace(self.kodi_legacy, ''))),
+                ((wsu_path, 'icon.png'),
+                 (cache_resources, 'icon.png')),
+                (((wsu_path, 'resources', 'language', 'resource.language.en_gb', 'strings.po'),
+                  (cache_lang_sub, 'strings.po')),
+                 ((wsu_path, 'resources', 'language', 'English', 'strings.xml'),
+                  (cache_lang_sub, 'strings.xml')
+                  ))[self.kodi_is_legacy],
         ):
             helpers.copy_file(ek.ek(
                 os.path.join, *(sickbeard.PROG_DIR, 'sickbeard', 'clients', 'kodi') + src), ek.ek(os.path.join, *dst))
 
     def get_content_type(self):
-        if '.md5' == self.absolute_path[-4:]:
+        if '.md5' == self.absolute_path[-4:] or '.po' == self.absolute_path[-3:]:
             return 'text/plain'
         return super(RepoHandler, self).get_content_type()
 
-    def index(self, basepath, filelist):
+    def index(self, filelist):
         t = PageTemplate(web_handler=self, file='repo_index.tmpl')
-        t.basepath = basepath
+        t.basepath = self.request.path
+        t.kodi_is_legacy = self.kodi_is_legacy
         t.filelist = filelist
+        t.repo = '%s-%s.zip' % self.repo_sickgear_details()
+        t.addon = '%s-%s.zip' % self.addon_watchedstate_details()
+
+        try:
+            with open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'CHANGES.md')) as fh:
+                t.version = re.findall(r'###[^0-9x]+([0-9]+\.[0-9]+\.[0-9x]+)', fh.readline())[0]
+        except (BaseException, Exception):
+            t.version = ''
+
         return t.respond()
 
     def render_kodi_index(self):
-        return self.index('/kodi/',
-                          ['repository.sickgear/',
+        return self.index(['repository.sickgear/',
                            'service.sickgear.watchedstate.updater/',
                            'addons.xml',
                            'addons.xml.md5',
@@ -574,8 +599,7 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_repository_sickgear_index(self):
         aid, version = self.repo_sickgear_details()
-        return self.index('/kodi/repository.sickgear/',
-                          ['addon.xml',
+        return self.index(['addon.xml',
                            'icon.png',
                            '%s-%s.zip' % (aid, version),
                            '%s-%s.zip.md5' % (aid, version),
@@ -583,8 +607,7 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_service_sickgear_watchedstate_updater_index(self):
         aid, version = self.addon_watchedstate_details()
-        return self.index('/kodi/service.sickgear.watchedstate.updater/',
-                          ['resources/',
+        return self.index(['resources/',
                            'addon.xml',
                            'icon.png',
                            '%s-%s.zip' % (aid, version),
@@ -592,21 +615,16 @@ class RepoHandler(BaseStaticFileHandler):
                            ])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources',
-                          ['language/',
+        return self.index(['language/',
                            'settings.xml',
                            'icon.png',
                            ])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_language_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources/language',
-                          ['English/',
-                           ])
+        return self.index([('resource.language.en_gb/', 'English/')[self.kodi_is_legacy]])
 
     def render_kodi_service_sickgear_watchedstate_updater_resources_language_english_index(self):
-        return self.index('/kodi/service.sickgear.watchedstate.updater/resources/language/English',
-                          ['strings.xml',
-                           ])
+         return self.index([('strings.po', 'strings.xml')[self.kodi_is_legacy]])
 
     def repo_sickgear_details(self):
         return re.findall(r'(?si)addon\sid="(repository\.[^"]+)[^>]+version="([^"]+)',
@@ -621,21 +639,31 @@ class RepoHandler(BaseStaticFileHandler):
         if int(timestamp_near(datetime.datetime.now())) < sickbeard.MEMCACHE.get(mem_key, {}).get('last_update', 0):
             return sickbeard.MEMCACHE.get(mem_key).get('data')
 
+        filename = 'addon%s.xml' % self.kodi_include
         with io.open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickbeard', 'clients',
-                           'kodi', 'service.sickgear.watchedstate.updater', 'addon.xml'), 'r', encoding='utf8') as fh:
-            xml = fh.read().strip() % dict(ADDON_VERSION=self.get_addon_version())
+                           'kodi', 'service.sickgear.watchedstate.updater', filename), 'r', encoding='utf8') as fh:
+            xml = fh.read().strip() % dict(ADDON_VERSION=self.get_addon_version(self.kodi_include))
 
         sickbeard.MEMCACHE[mem_key] = dict(last_update=30 + int(timestamp_near(datetime.datetime.now())), data=xml)
         return xml
 
     @staticmethod
-    def get_addon_version():
+    def get_addon_version(kodi_include):
+        """
+        :param kodi_include: kodi variant to use
+        :type kodi_include: AnyStr
+        :return: Version of addon
+        :rtype: AnyStr
+
+        Must use an arg here instead of `self` due to static call use case from external class
+        """
         mem_key = 'kodi_ver'
         if int(timestamp_near(datetime.datetime.now())) < sickbeard.MEMCACHE.get(mem_key, {}).get('last_update', 0):
             return sickbeard.MEMCACHE.get(mem_key).get('data')
 
+        filename = 'service%s.py' % kodi_include
         with io.open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'sickbeard', 'clients',
-                           'kodi', 'service.sickgear.watchedstate.updater', 'service.py'), 'r', encoding='utf8') as fh:
+                           'kodi', 'service.sickgear.watchedstate.updater', filename), 'r', encoding='utf8') as fh:
             version = re.findall(r'ADDON_VERSION\s*?=\s*?\'([^\']+)', fh.read())[0]
 
         sickbeard.MEMCACHE[mem_key] = dict(last_update=30 + int(timestamp_near(datetime.datetime.now())), data=version)
@@ -643,17 +671,20 @@ class RepoHandler(BaseStaticFileHandler):
 
     def render_kodi_repo_addon_xml(self):
         t = PageTemplate(web_handler=self, file='repo_kodi_addon.tmpl')
-        return t.respond().strip()
+
+        t.endpoint = 'kodi' + ('', '-legacy')[self.kodi_is_legacy]
+
+        return re.sub(r'#\s.*\n', '', t.respond())
 
     def render_kodi_repo_addons_xml(self):
         t = PageTemplate(web_handler=self, file='repo_kodi_addons.tmpl')
         # noinspection PyTypeChecker
         t.watchedstate_updater_addon_xml = re.sub(
-            r'(?m)^([\s]*<)', r'\t\1',
+            r'(?m)^(\s*<)', r'\t\1',
             '\n'.join(self.get_watchedstate_updater_addon_xml().split('\n')[1:]))  # skip xml header
 
         t.repo_xml = re.sub(
-            r'(?m)^([\s]*<)', r'\t\1',
+            r'(?m)^(\s*<)', r'\t\1',
             '\n'.join(self.render_kodi_repo_addon_xml().split('\n')[1:]))
 
         return t.respond()
@@ -698,17 +729,25 @@ class RepoHandler(BaseStaticFileHandler):
         else:
             helpers.remove_file_perm(devenv_dst)
 
-        for direntry in helpers.scantree(zip_path, exclude=[r'\.xcf$'], filter_kind=False):
+        for direntry in helpers.scantree(zip_path,
+                                         exclude=[r'\.xcf$',
+                                                  'addon%s.xml$' % self.kodi_exclude,
+                                                  'settings%s.xml$' % self.kodi_exclude,
+                                                  'service%s.py' % self.kodi_exclude,
+                                                  ('^strings.xml$', r'\.po$')[self.kodi_is_legacy]],
+                                         filter_kind=False):
             try:
                 infile = None
-                if 'service.sickgear.watchedstate.updater' in direntry.path and direntry.path.endswith('addon.xml'):
+                filename = 'addon%s.xml' % self.kodi_include
+                if 'service.sickgear.watchedstate.updater' in direntry.path and direntry.path.endswith(filename):
                     infile = self.get_watchedstate_updater_addon_xml()
                 if not infile:
                     with io.open(direntry.path, 'rb') as fh:
                         infile = fh.read()
 
                 with zipfile.ZipFile(bfr, 'a') as zh:
-                    zh.writestr(ek.ek(os.path.relpath, direntry.path, basepath), infile, zipfile.ZIP_DEFLATED)
+                    zh.writestr(ek.ek(os.path.relpath, direntry.path.replace(self.kodi_legacy, ''), basepath),
+                                infile, zipfile.ZIP_DEFLATED)
             except OSError as e:
                 logger.log('Unable to zip %s: %r / %s' % (direntry.path, e, ex(e)), logger.WARNING)
 
@@ -720,7 +759,7 @@ class RepoHandler(BaseStaticFileHandler):
 class NoXSRFHandler(RouteHandler):
 
     def __init__(self, *arg, **kwargs):
-
+        self.kodi_include = '' if not kwargs.pop('legacy', None) else '-helix-leia'
         super(NoXSRFHandler, self).__init__(*arg, **kwargs)
         self.lock = threading.Lock()
 
@@ -733,11 +772,10 @@ class NoXSRFHandler(RouteHandler):
 
         yield self.route_method(route, limit_route=False, xsrf_filter=False)
 
-    @staticmethod
-    def update_watched_state_kodi(payload=None, as_json=True, **kwargs):
+    def update_watched_state_kodi(self, payload=None, as_json=True, **kwargs):
         data = {}
         try:
-            data = json.loads(payload)
+            data = json_loads(payload)
         except (BaseException, Exception):
             pass
 
@@ -768,7 +806,7 @@ class NoXSRFHandler(RouteHandler):
                        (mapped, mapping[0], mapping[1]))
 
         req_version = tuple([int(x) for x in kwargs.get('version', '0.0.0').split('.')])
-        this_version = RepoHandler.get_addon_version()
+        this_version = RepoHandler.get_addon_version(self.kodi_include)
         if not kwargs or (req_version < tuple([int(x) for x in this_version.split('.')])):
             logger.log('Kodi Add-on update available. To upgrade to version %s; '
                        'select "Check for updates" on menu of "SickGear Add-on repository"' % this_version)
@@ -794,10 +832,10 @@ class IsAliveHandler(BaseHandler):
         self.set_header('Access-Control-Allow-Headers', 'x-requested-with')
 
         if sickbeard.started:
-            results = decode_str(callback) + '(' + json.dumps(
+            results = decode_str(callback) + '(' + json_dumps(
                 {'msg': str(sickbeard.PID)}) + ');'
         else:
-            results = decode_str(callback) + '(' + json.dumps({'msg': 'nope'}) + ');'
+            results = decode_str(callback) + '(' + json_dumps({'msg': 'nope'}) + ');'
 
         self.write(results)
 
@@ -825,7 +863,7 @@ class LoadingWebHandler(BaseHandler):
 
     @staticmethod
     def get_message():
-        return json.dumps({'message': classes.loading_msg.message})
+        return json_dumps({'message': classes.loading_msg.message})
 
     # noinspection PyUnusedLocal
     @authenticated
@@ -1275,7 +1313,7 @@ class MainHandler(WebHandler):
                 next_event += [{k + '_timeleft': t and str(t).split('.')[0] or 'soon'}]
 
         if json_dump not in (False, 0, '0', '', None):
-            next_event = json.dumps(next_event)
+            next_event = json_dumps(next_event)
 
         return next_event
 
@@ -1330,7 +1368,7 @@ sg_apikey = '0123456789abcdef'
 sg_host = 'http://localhost:8081'
 
 url = '%s/api/%s/?cmd=sg.updatewatchedstate' % (sg_host, sg_apikey)
-payload = json.dumps(dict(
+payload = json_dumps(dict(
     key01=dict(path_file='\\media\\path\\', played=100, label='Bob', date_watched=1509850398.0),
     key02=dict(path_file='\\media\\path\\file-played1.mkv', played=100, label='Sue', date_watched=1509850398.0),
     key03=dict(path_file='\\media\\path\\file-played2.mkv', played=0, label='Rita', date_watched=1509850398.0)
@@ -1338,12 +1376,15 @@ payload = json.dumps(dict(
 # payload is POST'ed to SG
 rq = urllib2.Request(url, data=payload)
 r = urllib2.urlopen(rq)
-print json.load(r)
+print json_load(r)
 r.close()
 ```
         """
         try:
-            data = json.loads(payload)
+            if isinstance(payload, string_types):
+                data = json_loads(payload)
+            else:
+                data = payload
         except ValueError:
             payload = {}
             data = payload
@@ -1411,7 +1452,7 @@ r.close()
                 data = dict(error='Request made to SickGear with invalid payload')
                 logger.log('Update watched state failed: %s' % data['error'], logger.WARNING)
 
-            return json.dumps(data)
+            return json_dumps(data)
 
     def toggle_specials_view_show(self, tvid_prodid):
         sickbeard.DISPLAY_SHOW_SPECIALS = not sickbeard.DISPLAY_SHOW_SPECIALS
@@ -1808,7 +1849,7 @@ class Home(MainHandler):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
 
         if None is pin:
-            return json.dumps({'result': 'Fail', 'error_message': 'Trakt PIN required for authentication'})
+            return json_dumps({'result': 'Fail', 'error_message': 'Trakt PIN required for authentication'})
 
         if account and 'new' == account:
             account = None
@@ -1817,9 +1858,9 @@ class Home(MainHandler):
         if account:
             acc = helpers.try_int(account, -1)
             if 0 < acc and acc not in sickbeard.TRAKT_ACCOUNTS:
-                return json.dumps({'result': 'Fail', 'error_message': 'Fail: cannot update non-existing account'})
+                return json_dumps({'result': 'Fail', 'error_message': 'Fail: cannot update non-existing account'})
 
-        json_fail_auth = json.dumps({'result': 'Fail', 'error_message': 'Trakt NOT authenticated'})
+        json_fail_auth = json_dumps({'result': 'Fail', 'error_message': 'Trakt NOT authenticated'})
         try:
             resp = TraktAPI().trakt_token(pin, account=acc)
         except TraktAuthException:
@@ -1831,7 +1872,7 @@ class Home(MainHandler):
             sickbeard.USE_TRAKT = True
             sickbeard.save_config()
         pick = resp if not account else acc
-        return json.dumps({'result': 'Success',
+        return json_dumps({'result': 'Success',
                            'account_id': sickbeard.TRAKT_ACCOUNTS[pick].account_id,
                            'account_name': sickbeard.TRAKT_ACCOUNTS[pick].name})
 
@@ -1848,10 +1889,10 @@ class Home(MainHandler):
                     if TraktAPI.delete_account(aid):
                         trakt_collection_remove_account(aid)
                         account['num_accounts'] = len(sickbeard.TRAKT_ACCOUNTS)
-                        return json.dumps(account)
+                        return json_dumps(account)
 
-                return json.dumps({'result': 'Not found: Account to delete'})
-        return json.dumps({'result': 'Not found: Invalid account id'})
+                return json_dumps({'result': 'Not found: Account to delete'})
+        return json_dumps({'result': 'Not found: Invalid account id'})
 
     def load_show_notify_lists(self):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1881,7 +1922,7 @@ class Home(MainHandler):
             if data:
                 response.append({current_group[0]: data})
 
-        return json.dumps(response)
+        return json_dumps(response)
 
     def test_slack(self, channel=None, as_authed=False, bot_name=None, icon_url=None, access_token=None):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1908,7 +1949,7 @@ class Home(MainHandler):
 
         r = notifiers.NotifierFactory().get('TELEGRAM').test_notify(
             send_icon=bool(config.checkbox_to_value(send_icon)), access_token=access_token, chatid=chatid, quiet=quiet)
-        return json.dumps(r)
+        return json_dumps(r)
 
     def test_email(self, host=None, port=None, smtp_from=None, use_tls=None, user=None, pwd=None, to=None):
         self.set_header('Cache-Control', 'max-age=0,no-cache,no-store')
@@ -1932,7 +1973,7 @@ class Home(MainHandler):
                              ' WHERE indexer = ? AND indexer_id = ?',
                              [emails, parse[0], parse[1]]):
             success = True
-        return json.dumps({'id': show, 'success': success})
+        return json_dumps({'id': show, 'success': success})
 
     def check_update(self):
         # force a check to see if there is a new version
@@ -2044,13 +2085,13 @@ class Home(MainHandler):
         if tvid_prodid:
             show_obj = helpers.find_show_by_id(tvid_prodid)
         if not show_obj:
-            return json.dumps(response)
+            return json_dumps(response)
 
         re_season = re.compile(r'(?i)^showseason-(\d+)$')
         season = None if not any(re_season.findall(season)) else \
             helpers.try_int(re_season.findall(season)[0], None)
         if None is season:
-            return json.dumps(response)
+            return json_dumps(response)
 
         t = PageTemplate(web_handler=self, file='inc_displayShow.tmpl')
         t.show_obj = show_obj
@@ -2078,7 +2119,7 @@ class Home(MainHandler):
         t.scene_absolute_numbering = get_scene_absolute_numbering_for_show(*args)
         t.xem_absolute_numbering = get_xem_absolute_numbering_for_show(*args)
 
-        return json.dumps({'success': t.respond()})
+        return json_dumps({'success': t.respond()})
 
     def view_show(self, tvid_prodid=None):
 
@@ -2477,7 +2518,7 @@ class Home(MainHandler):
                 response[cur_show_obj.tvid_prodid].update({
                     'path': cur_show_obj.path, 'bSize': loc_size, 'hSize': helpers.human(loc_size)})
 
-        return json.dumps(response)
+        return json_dumps(response)
 
     @staticmethod
     def scene_exceptions(tvid_prodid, wanted_season=None):
@@ -2518,7 +2559,7 @@ class Home(MainHandler):
         show_obj = helpers.find_show_by_id(tvid_prodid)
         response = {}
         if not show_obj:
-            return json.dumps(response)
+            return json_dumps(response)
         new_ids = {}
         save_map = []
         with show_obj.lock:
@@ -2584,14 +2625,14 @@ class Home(MainHandler):
         response.update({
             'map': {k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)}
         })
-        return json.dumps(response)
+        return json_dumps(response)
 
     @staticmethod
     def force_mapping(tvid_prodid, **kwargs):
 
         show_obj = helpers.find_show_by_id(tvid_prodid)
         if not show_obj:
-            return json.dumps({})
+            return json_dumps({})
         save_map = []
         with show_obj.lock:
             for k, v in iteritems(kwargs):
@@ -2618,7 +2659,7 @@ class Home(MainHandler):
                 save_mapping(show_obj, save_map=save_map)
             map_indexers_to_show(show_obj, force=True)
             ui.notifications.message('Mapping Reloaded')
-        return json.dumps({k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)})
+        return json_dumps({k: {r: w for r, w in iteritems(v) if 'date' != r} for k, v in iteritems(show_obj.ids)})
 
     @staticmethod
     def fanart_tmpl(t):
@@ -3054,7 +3095,7 @@ class Home(MainHandler):
             err_msg = 'You must specify a show and at least one episode'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         use_default = False
@@ -3067,7 +3108,7 @@ class Home(MainHandler):
             err_msg = 'Invalid status'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         show_obj = helpers.find_show_by_id(tvid_prodid)
@@ -3076,7 +3117,7 @@ class Home(MainHandler):
             err_msg = 'Error', 'Show not in show list'
             if direct:
                 ui.notifications.error('Error', err_msg)
-                return json.dumps({'result': 'error'})
+                return json_dumps({'result': 'error'})
             return self._generic_message('Error', err_msg)
 
         min_initial = min(Quality.splitQuality(show_obj.quality)[0])
@@ -3182,7 +3223,7 @@ class Home(MainHandler):
                 ui.notifications.message('Retry search started', msg)
 
         if direct:
-            return json.dumps({'result': 'success'})
+            return json_dumps({'result': 'success'})
         self.redirect('/home/view-show?tvid_prodid=%s' % tvid_prodid)
 
     def rename_media(self, tvid_prodid=None):
@@ -3309,7 +3350,7 @@ class Home(MainHandler):
             #    return self.search_q_status(
             #        '%s%s%s' % (ep_obj.show_obj.tvid, TVidProdid.glue, ep_obj.show_obj.prodid))  # page refresh
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def episode_retry(self, tvid_prodid, season, episode):
 
@@ -3377,7 +3418,9 @@ class Home(MainHandler):
                 ep_data_list.append(ep_data)
                 seen_eps.add(uniq_sxe)
 
-        return json.dumps(dict(episodes=ep_data_list))
+        if not ep_data_list:
+            return '{"episodes":[]}'
+        return json_dumps(dict(episodes=ep_data_list))
 
     @staticmethod
     def prepare_episode(ep_type, searchstate, retrystate=False, statusoverview=False):
@@ -3421,19 +3464,19 @@ class Home(MainHandler):
     def search_episode_subtitles(self, tvid_prodid=None, season=None, episode=None):
 
         if not sickbeard.USE_SUBTITLES:
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # retrieve the episode object and fail if we can't get one
         ep_obj = self._get_episode(tvid_prodid, season, episode)
         if isinstance(ep_obj, str):
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # try do download subtitles for that episode
         try:
             previous_subtitles = set([subliminal.language.Language(x) for x in ep_obj.subtitles])
             ep_obj.subtitles = set([x.language for x in next(itervalues(ep_obj.download_subtitles()))])
         except (BaseException, Exception):
-            return json.dumps({'result': 'failure'})
+            return json_dumps({'result': 'failure'})
 
         # return the correct json value
         if previous_subtitles != ep_obj.subtitles:
@@ -3444,7 +3487,7 @@ class Home(MainHandler):
         else:
             status = 'No subtitles downloaded'
         ui.notifications.message('Subtitles Search', status)
-        return json.dumps({'result': status,
+        return json_dumps({'result': status,
                            'subtitles': ','.join(sorted([x.alpha2 for x in
                                                          ep_obj.subtitles.union(previous_subtitles)]))})
 
@@ -3456,7 +3499,7 @@ class Home(MainHandler):
         result = set_scene_numbering_helper(tvid, prodid, for_season, for_episode, for_absolute, scene_season,
                                             scene_episode, scene_absolute)
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def fetch_releasegroups(show_name):
@@ -3471,12 +3514,12 @@ class Home(MainHandler):
                           groups=[dict(name='No groups fetched in API response', rating='', range='')])
         else:
             result = dict(result='success', groups=result)
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def csv_items(text):
         # type: (AnyStr) -> AnyStr
-        """Return a text list of items seperated by comma instead of '/' """
+        """Return a text list of items separated by comma instead of '/' """
 
         return re.sub(r'\b\s?/\s?\b', ', ', text)
 
@@ -3692,7 +3735,7 @@ class Home(MainHandler):
                 try:
                     results[cur_date_kind] = self._select_person_by_date(date_arg, cur_date_kind)
                 except (BaseException, Exception) as e:
-                    return json.dumps({'result': 'error', 'error': ex(e)})
+                    return json_dumps({'result': 'error', 'error': ex(e)})
 
         names = names and names.split('|')
         if names:
@@ -3706,7 +3749,7 @@ class Home(MainHandler):
                 self._convert_person_data(cur_person)
             results['names'] = sql_result
 
-        return json.dumps({'result': 'success', 'person_list': results})
+        return json_dumps({'result': 'success', 'person_list': results})
 
     def get_switch_changed(self):
         t = PageTemplate(web_handler=self, file='switch_show_result.tmpl')
@@ -3883,7 +3926,7 @@ class AddShows(Home):
         result.sort()
         result.insert(0, sickbeard.ADD_SHOWS_METALANG)
 
-        return json.dumps({'results': result})
+        return json_dumps({'results': result})
 
     @staticmethod
     def generate_show_dir_name(show_name):
@@ -4005,15 +4048,20 @@ class AddShows(Home):
                         ids_search_used.update({k: v for k, v in iteritems(cur_result.get('ids', {}))
                                                 if v and k not in iterkeys(ids_to_search)})
                     else:
-                        results[cur_tvid][tv_src_id] = cur_result.copy()
+                        if type(cur_result) == dict:
+                            results[cur_tvid][tv_src_id] = cur_result.copy()
+                        else:
+                            results[cur_tvid][tv_src_id] = cur_result.to_dict()
                         results[cur_tvid][tv_src_id]['direct_id'] = \
                             (cur_tvid in ids_to_search and ids_to_search.get(cur_tvid)
                              and tv_src_id == ids_to_search.get(cur_tvid)) or \
                             (TVINFO_TVDB == cur_tvid and cur_result.get('slug') and
                              ids_to_search.get(TVINFO_TVDB_SLUG) == cur_result.get('slug')) or False
                         if results[cur_tvid][tv_src_id]['direct_id'] or \
-                                any(ids_to_search[si] == cur_result.get('ids', {})[si] for si in ids_to_search):
-                            ids_search_used.update({k: v for k, v in iteritems(cur_result.get('ids', {}))
+                                any(ids_to_search[si] == results[cur_tvid][tv_src_id].get('ids', {})[si]
+                                    for si in ids_to_search):
+                            ids_search_used.update({k: v for k, v in iteritems(
+                                results[cur_tvid][tv_src_id].get('ids',{}))
                                                     if v and k not in iterkeys(ids_to_search)})
                         results[cur_tvid][tv_src_id]['rename_suggest'] = '' \
                             if not results[cur_tvid][tv_src_id]['firstaired'] \
@@ -4141,7 +4189,7 @@ class AddShows(Home):
         for n, func in enumerate(sort_results):
             final_results = func(final_results, n == len(sort_results) - 1, 'nogroup' == sickbeard.RESULTS_SORTBY[-7:])
 
-        return json.dumps({'results': final_results})
+        return json_dumps({'results': final_results})
 
     @staticmethod
     def _make_search_image_url(iid, show_info):
@@ -4157,6 +4205,10 @@ class AddShows(Home):
             img_url = 'imagecache?path=browse/thumb/tvmaze&filename=%s&trans=0&source=%s' % \
                       ('%s.jpg' % show_info['id'], show_info['image'])
             sickbeard.CACHE_IMAGE_URL_LIST.add_url(show_info['image'])
+        elif TVINFO_TMDB == iid and 'poster' in show_info and show_info['poster']:
+            img_url = 'imagecache?path=browse/thumb/tmdb&filename=%s&trans=0&source=%s' % \
+                      ('%s.jpg' % show_info['id'], show_info['poster'])
+            sickbeard.CACHE_IMAGE_URL_LIST.add_url(show_info['poster'])
         return img_url
 
     @classmethod
@@ -4490,28 +4542,28 @@ class AddShows(Home):
         if 'enable' == kwargs.get('action'):
             account_id = re.findall(r'\d{6,32}', kwargs.get('input', ''))
             if not account_id:
-                return json.dumps({'result': 'Fail: Invalid IMDb ID'})
+                return json_dumps({'result': 'Fail: Invalid IMDb ID'})
             acc_id = account_id[0]
 
             url = 'https://www.imdb.com/user/ur%s/watchlist' % acc_id + \
                   '?sort=date_added,desc&title_type=tvSeries,tvEpisode,tvMiniSeries&view=detail'
             html = helpers.get_url(url, nocache=True)
             if not html:
-                return json.dumps({'result': 'Fail: No list found with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: No list found with id: %s' % acc_id})
             if 'id="unavailable"' in html or 'list is not public' in html or 'not enabled public view' in html:
-                return json.dumps({'result': 'Fail: List is not public with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: List is not public with id: %s' % acc_id})
 
             try:
                 list_name = re.findall(r'(?i)og:title[^>]+?content[^"]+?"([^"]+?)\s+Watchlist\s*"',
                                        html)[0].replace('\'s', '')
                 accounts[acc_id] = list_name or 'noname'
             except (BaseException, Exception):
-                return json.dumps({'result': 'Fail: No list found with id: %s' % acc_id})
+                return json_dumps({'result': 'Fail: No list found with id: %s' % acc_id})
 
         else:
             acc_id = kwargs.get('select', '')
             if acc_id not in accounts:
-                return json.dumps({'result': 'Fail: Unknown IMDb ID'})
+                return json_dumps({'result': 'Fail: Unknown IMDb ID'})
 
             if 'disable' == kwargs.get('action'):
                 accounts[acc_id] = '(Off) %s' % accounts[acc_id].replace('(Off) ', '')
@@ -4533,7 +4585,7 @@ class AddShows(Home):
             sickbeard.IMDB_ACCOUNTS.insert(0, yours[0][0])
         sickbeard.save_config()
 
-        return json.dumps({'result': 'Success', 'accounts': sickbeard.IMDB_ACCOUNTS})
+        return json_dumps({'result': 'Success', 'accounts': sickbeard.IMDB_ACCOUNTS})
 
     @staticmethod
     def parse_imdb_overview(tag):
@@ -4744,7 +4796,7 @@ class AddShows(Home):
         if html:
             show_list_found = None
             try:
-                data = json.loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
+                data = json_loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
                 show_list_found = self.parse_imdb(data, filtered, kwargs)
             except (BaseException, Exception):
                 pass
@@ -4789,7 +4841,7 @@ class AddShows(Home):
         if html:
             show_list_found = None
             try:
-                data = json.loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
+                data = json_loads((re.findall(r'(?im)IMDb.*?Initial.*?\.push\((.*)\).*?$', html) or ['{}'])[0])
                 show_list_found = self.parse_imdb(data, filtered, kwargs)
             except (BaseException, Exception):
                 pass
@@ -5057,7 +5109,7 @@ class AddShows(Home):
                 sickbeard.BROWSELIST_HIDDEN += [sid]
         if save_config:
             sickbeard.save_config()
-        return json.dumps({'success': save_config})
+        return json_dumps({'success': save_config})
 
     def info_trakt(self, ids, show_name):
 
@@ -5753,7 +5805,7 @@ class AddShows(Home):
                     showfilter=kwargs.get('showfilter', ''), showsort=kwargs.get('showsort', ''))
         if save_config:
             sickbeard.save_config()
-        return json.dumps({'success': save_config})
+        return json_dumps({'success': save_config})
 
     def browse_shows(self, browse_type, browse_title, shows, **kwargs):
         """
@@ -6229,7 +6281,7 @@ class Manage(MainHandler):
                                                    'change')[None is d_status or not undo_from_history], change_to)])),
                         status]
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def recommend_status(cur_status, location=None, d_qual=None, cur_quality=None):
@@ -6433,7 +6485,7 @@ class Manage(MainHandler):
                 subliminal.language.Language(subtitle, strict=False).alpha2
                 for subtitle in cur_result['subtitles'].split(',')]) if '' != cur_result['subtitles'] else ''
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def subtitle_missed(self, which_subs=None):
 
@@ -6967,7 +7019,7 @@ class Manage(MainHandler):
         :param to_switch:
         """
         if not to_switch:
-            return json.dumps({'error': 'No list given'})
+            return json_dumps({'error': 'No list given'})
 
         shows = to_switch.split('|')
         sl, tv_sources, errors = [], sickbeard.TVInfoAPI().search_sources, []
@@ -7019,7 +7071,7 @@ class Manage(MainHandler):
                 logger.log('Could not add show %s to switch queue: %s' % (show_obj.tvid_prodid, ex(e)), logger.WARNING)
                 errors.append('Could not add show %s to switch queue: %s' % (show_obj.tvid_prodid, ex(e)))
 
-        return json.dumps(({'result': 'success'}, {'errors': ', '.join(errors)})[0 < len(errors)])
+        return json_dumps(({'result': 'success'}, {'errors': ', '.join(errors)})[0 < len(errors)])
 
 
 class ManageSearch(Manage):
@@ -7044,18 +7096,18 @@ class ManageSearch(Manage):
     @staticmethod
     def remove_from_search_queue(to_remove=None):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.search_queue_scheduler.action.remove_from_queue(to_remove=to_remove)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_search_queue(search_type=None):
         search_type = helpers.try_int(search_type, None)
         if not search_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         sickbeard.search_queue_scheduler.action.clear_queue(action_types=search_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def retry_provider(provider=None):
@@ -7165,25 +7217,25 @@ class ShowTasks(Manage):
     @staticmethod
     def remove_from_show_queue(to_remove=None, force=False):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         force = force in (1, '1', 'true', 'True', True)
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.show_queue_scheduler.action.remove_from_queue(to_remove=to_remove, force=force)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def remove_from_people_queue(to_remove=None):
         if not to_remove:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         to_remove = [int(r) for r in to_remove.split('|')]
         sickbeard.people_queue_scheduler.action.remove_from_queue(to_remove=to_remove)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_show_queue(show_type=None):
         show_type = helpers.try_int(show_type, None)
         if not show_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         if show_type in [sickbeard.show_queue.ShowQueueActions.UPDATE,
                          sickbeard.show_queue.ShowQueueActions.FORCEUPDATE,
                          sickbeard.show_queue.ShowQueueActions.WEBFORCEUPDATE]:
@@ -7191,15 +7243,15 @@ class ShowTasks(Manage):
                          sickbeard.show_queue.ShowQueueActions.FORCEUPDATE,
                          sickbeard.show_queue.ShowQueueActions.WEBFORCEUPDATE]
         sickbeard.show_queue_scheduler.action.clear_queue(action_types=show_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     @staticmethod
     def clear_people_queue(people_type=None):
         people_type = helpers.try_int(people_type, None)
         if not people_type:
-            return json.dumps({'error': 'nothing to do'})
+            return json_dumps({'error': 'nothing to do'})
         sickbeard.people_queue_scheduler.action.clear_queue(action_types=people_type)
-        return json.dumps({'result': 'success'})
+        return json_dumps({'result': 'success'})
 
     def force_show_update(self):
 
@@ -7225,7 +7277,7 @@ class ShowTasks(Manage):
                     change = 1
                 show_obj.not_found_count *= change
 
-        return json.dumps({})
+        return json_dumps({})
 
 
 class History(MainHandler):
@@ -7431,7 +7483,7 @@ class History(MainHandler):
                 Return an image src, image class, or None based on a recognised identifier
 
                 :param _item: to search for a known domain identifier
-                :param as_class: wether a search should return an image (by default) or class
+                :param as_class: whether a search should return an image (by default) or class
                 :return: image src, image class, or None if unknown identifier
                 """
                 for identifier, result in (
@@ -7496,7 +7548,7 @@ class History(MainHandler):
                 try:
                     requests.head('%s://%s' % (proto, down_url), timeout=5)
                 except (BaseException, Exception):
-                    return json.dumps(result)
+                    return json_dumps(result)
 
             resp = helpers.get_url('%s://%s/check.php?domain=%s' % (proto, down_url, site_url))
             if resp:
@@ -7520,7 +7572,7 @@ class History(MainHandler):
 
                 result = {('last_down', 'down_for')['up' not in check and 'down for' in check]: period}
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def clear_history(self):
 
@@ -7823,7 +7875,7 @@ class History(MainHandler):
 
         ui.notifications.message('History : Watch', msg)
 
-        return json.dumps(dict(success=h_records))
+        return json_dumps(dict(success=h_records))
 
 
 class Config(MainHandler):
@@ -7847,7 +7899,7 @@ class Config(MainHandler):
 
         try:
             with open(ek.ek(os.path.join, sickbeard.PROG_DIR, 'CHANGES.md')) as fh:
-                t.version = re.findall(r'###[^0-9]+([0-9]+\.[0-9]+\.[0-9]+)', fh.readline())[0]
+                t.version = re.findall(r'###[^0-9]+([0-9]+\.[0-9]+\.[0-9x]+)', fh.readline())[0]
         except (BaseException, Exception):
             t.version = ''
 
@@ -7895,7 +7947,7 @@ class ConfigGeneral(Config):
 
         changed_exceptions, cnt_updated_numbers, min_remain_iv = scene_exceptions.retrieve_exceptions()
 
-        return json.dumps(dict(names=int(changed_exceptions), numbers=cnt_updated_numbers, min_remain_iv=min_remain_iv))
+        return json_dumps(dict(names=int(changed_exceptions), numbers=cnt_updated_numbers, min_remain_iv=min_remain_iv))
 
     @staticmethod
     def export_alt(tvid_prodid=None):
@@ -7958,8 +8010,8 @@ class ConfigGeneral(Config):
                 for fe_te in ft_list:
                     alts[f_s]['se'] += [dict({fe_te[0]: '%sx%s' % (t_s, '-'.join(['%s' % x for x in fe_te[1:]]))})]
 
-            ui_output = json.dumps(dict({tvid_prodid: alts}), indent=2, separators=(',', ': '))
-        return json.dumps(dict(text='%s\n\n' % ui_output))
+            ui_output = json_dumps(dict({tvid_prodid: alts}), indent=2, separators=(',', ': '))
+        return json_dumps(dict(text='%s\n\n' % ui_output))
 
     @staticmethod
     def generate_key():
@@ -8063,7 +8115,7 @@ class ConfigGeneral(Config):
                 sickbeard.save_config()
                 ui.notifications.message('Configuration Saved', ek.ek(os.path.join, sickbeard.CONFIG_FILE))
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     @staticmethod
     def revoke_apikey(app_name, api_key):
@@ -8081,7 +8133,7 @@ class ConfigGeneral(Config):
             sickbeard.save_config()
             ui.notifications.message('Configuration Saved', ek.ek(os.path.join, sickbeard.CONFIG_FILE))
 
-        return json.dumps(result)
+        return json_dumps(result)
 
     def save_general(self, launch_browser=None, update_shows_on_start=None, show_update_hour=None,
                      trash_remove_show=None, trash_rotate_logs=None,
@@ -8248,23 +8300,23 @@ class ConfigGeneral(Config):
     @staticmethod
     def fetch_pullrequests():
         if 'master' == sickbeard.BRANCH:
-            return json.dumps({'result': 'success', 'pulls': []})
+            return json_dumps({'result': 'success', 'pulls': []})
         else:
             try:
                 pulls = sickbeard.update_software_scheduler.action.list_remote_pulls()
-                return json.dumps({'result': 'success', 'pulls': pulls})
+                return json_dumps({'result': 'success', 'pulls': pulls})
             except (BaseException, Exception) as e:
                 logger.log(u'exception msg: ' + ex(e), logger.DEBUG)
-                return json.dumps({'result': 'fail'})
+                return json_dumps({'result': 'fail'})
 
     @staticmethod
     def fetch_branches():
         try:
             branches = sickbeard.update_software_scheduler.action.list_remote_branches()
-            return json.dumps({'result': 'success', 'branches': branches, 'current': sickbeard.BRANCH or 'master'})
+            return json_dumps({'result': 'success', 'branches': branches, 'current': sickbeard.BRANCH or 'master'})
         except (BaseException, Exception) as e:
             logger.log(u'exception msg: ' + ex(e), logger.DEBUG)
-            return json.dumps({'result': 'fail'})
+            return json_dumps({'result': 'fail'})
 
 
 class ConfigSearch(Config):
@@ -8616,7 +8668,7 @@ class ConfigProviders(Config):
     @staticmethod
     def can_add_newznab_provider(name, url):
         if not name or not url:
-            return json.dumps({'error': 'No Provider Name or url specified'})
+            return json_dumps({'error': 'No Provider Name or url specified'})
 
         provider_dict = dict(zip([sickbeard.providers.generic_provider_name(x.get_id())
                                  for x in sickbeard.newznabProviderList], sickbeard.newznabProviderList))
@@ -8629,9 +8681,9 @@ class ConfigProviders(Config):
             provider_url_dict.get(sickbeard.providers.generic_provider_url(temp_provider.url), None)
 
         if e_p:
-            return json.dumps({'error': 'Provider already exists as %s' % e_p.name})
+            return json_dumps({'error': 'Provider already exists as %s' % e_p.name})
 
-        return json.dumps({'success': temp_provider.get_id()})
+        return json_dumps({'success': temp_provider.get_id()})
 
     @staticmethod
     def get_newznab_categories(name, url, key):
@@ -8643,7 +8695,7 @@ class ConfigProviders(Config):
         error = not name and 'Name' or not url and 'Url' or not key and 'Apikey' or ''
         if error:
             error = '\nNo provider %s specified' % error
-            return json.dumps({'success': False, 'error': error})
+            return json_dumps({'success': False, 'error': error})
 
         if name in [n.name for n in sickbeard.newznabProviderList if n.url == url]:
             provider = [n for n in sickbeard.newznabProviderList if n.name == name][0]
@@ -8658,12 +8710,12 @@ class ConfigProviders(Config):
             tv_categories = temp_provider.clean_newznab_categories(temp_provider.all_cats)
             state = False
 
-        return json.dumps({'success': True, 'tv_categories': tv_categories, 'state': state, 'error': ''})
+        return json_dumps({'success': True, 'tv_categories': tv_categories, 'state': state, 'error': ''})
 
     @staticmethod
     def can_add_torrent_rss_provider(name, url, cookies):
         if not name:
-            return json.dumps({'error': 'Invalid name specified'})
+            return json_dumps({'error': 'Invalid name specified'})
 
         provider_dict = dict(
             zip([x.get_id() for x in sickbeard.torrentRssProviderList], sickbeard.torrentRssProviderList))
@@ -8671,13 +8723,13 @@ class ConfigProviders(Config):
         temp_provider = rsstorrent.TorrentRssProvider(name, url, cookies)
 
         if temp_provider.get_id() in provider_dict:
-            return json.dumps({'error': 'A provider exists as [%s]' % provider_dict[temp_provider.get_id()].name})
+            return json_dumps({'error': 'A provider exists as [%s]' % provider_dict[temp_provider.get_id()].name})
         else:
             (succ, errMsg) = temp_provider.validate_feed()
             if succ:
-                return json.dumps({'success': temp_provider.get_id()})
+                return json_dumps({'success': temp_provider.get_id()})
 
-            return json.dumps({'error': errMsg})
+            return json_dumps({'error': errMsg})
 
     @staticmethod
     def check_providers_ping():
@@ -9324,7 +9376,7 @@ class UI(MainHandler):
                                                                      'type': cur_notification.type}
             cur_notification_num += 1
 
-        return json.dumps(messages)
+        return json_dumps(messages)
 
 
 class EventLogs(MainHandler):
@@ -9443,7 +9495,7 @@ class WebFileBrowser(MainHandler):
         """ /legacy """
 
         self.set_header('Content-Type', 'application/json')
-        return json.dumps(folders_at_path(path, True, bool(int(include_files))))
+        return json_dumps(folders_at_path(path, True, bool(int(include_files))))
 
     def complete(self, term, include_files=0, **kwargs):
         """ prevent issues with requests using legacy params """
@@ -9451,7 +9503,7 @@ class WebFileBrowser(MainHandler):
         """ /legacy """
 
         self.set_header('Content-Type', 'application/json')
-        return json.dumps([entry['path'] for entry in folders_at_path(
+        return json_dumps([entry['path'] for entry in folders_at_path(
             os.path.dirname(term), include_files=bool(int(include_files))) if 'path' in entry])
 
 
@@ -9572,7 +9624,7 @@ class CachedImages(MainHandler):
         image_file = ek.ek(os.path.abspath, image_file.replace('\\', '/'))
         if not ek.ek(os.path.isfile, image_file) and has_image_ext(file_name):
             basepath = ek.ek(os.path.dirname, image_file)
-            helpers.make_dirs(basepath)
+            helpers.make_path(basepath)
             poster_url = ''
             tmdb_image = False
             if None is not source and source in sickbeard.CACHE_IMAGE_URL_LIST:
@@ -9675,7 +9727,7 @@ class CachedImages(MainHandler):
         if not prefer_person and (char_obj.thumb_url or char_obj.image_url):
             image_cache_obj = image_cache.ImageCache()
             image_normal, image_thumb = image_cache_obj.character_both_path(char_obj, show_obj, person_obj=person_obj)
-            sg_helpers.make_dirs(image_cache_obj.characters_dir)
+            sg_helpers.make_path(image_cache_obj.characters_dir)
             if self.should_load_image(image_normal) and char_obj.image_url:
                 sg_helpers.download_file(char_obj.image_url, image_normal, nocache=True)
             if self.should_load_image(image_thumb) and char_obj.thumb_url:
@@ -9713,7 +9765,7 @@ class CachedImages(MainHandler):
         if person_obj.thumb_url or person_obj.image_url:
             image_cache_obj = image_cache.ImageCache()
             image_normal, image_thumb = image_cache_obj.person_both_paths(person_obj)
-            sg_helpers.make_dirs(image_cache_obj.characters_dir)
+            sg_helpers.make_path(image_cache_obj.characters_dir)
             if self.should_load_image(image_normal) and person_obj.image_url:
                 sg_helpers.download_file(person_obj.image_url, image_normal, nocache=True)
             if self.should_load_image(image_thumb) and person_obj.thumb_url:

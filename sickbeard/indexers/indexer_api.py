@@ -18,7 +18,7 @@
 import os
 
 from .indexer_config import init_config, tvinfo_config
-from sg_helpers import make_dirs, proxy_setting
+from sg_helpers import make_path, proxy_setting
 import sickbeard
 from lib.tvinfo_base import TVInfoBase
 import encodingKludge as ek

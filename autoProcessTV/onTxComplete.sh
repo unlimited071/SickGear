@@ -44,7 +44,7 @@ param3 = Client set downloaded item category or label (e.g. "%L")
 param4 = Client set downloaded item content path (e.g. "%F", "%D/%F" etc)
 
 Token values for params 3 and 4 are found documented in the download client or
-at the client webiste. Other clients may be able to replace param3 and param4
+at the client website. Other clients may be able to replace param3 and param4
 to fit (see examples).
 
 
