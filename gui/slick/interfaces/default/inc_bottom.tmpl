@@ -13,6 +13,15 @@
 
 	<footer>
 		<div class="footer clearfix">
+#if $sg_str('MEMCACHE').get('footer_msg')
+<style>
+.fwarn{background:#111; padding:3px 10px}
+</style>
+            <span class="red-text fwarn">#echo '</span><br><span class="red-text fwarn">'.join($sg_str('MEMCACHE').get('footer_msg').split('.')[:-1])#</span>
+			<br>
+			<br>
+#end if
+
 #set $my_db = $db.DBConnection()
 #set $today = str($datetime.date.today().toordinal())
 #set status_quality = '(%s)' % ','.join([str(quality) for quality in $Quality.SNATCHED_ANY])
